@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SPR Stintplaner</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0f;--s1:#111118;--s2:#18181f;--s3:#1f1f28;
+  --border:#2a2a3a;--b2:#363648;--text:#e8e8f8;--muted:#5a5a80;--m2:#8080b0;
+  --acc:#f59e0b;--blue:#3b82f6;--green:#22c55e;--red:#ef4444;--purple:#a855f7;
+  --c1:#3b82f6;--c2:#22c55e;--c3:#f97316;--c4:#a855f7;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-serif;font-size:13px;overflow:hidden}
+.app{display:flex;flex-direction:column;height:100vh}
+
+/* TOPBAR */
+.topbar{background:var(--s1);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;gap:12px;height:48px;flex-shrink:0}
+.logo{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.lt{font-size:13px;font-weight:700;color:var(--acc);letter-spacing:.06em}
+.ls{font-size:9px;color:var(--muted);letter-spacing:.1em}
+.tdiv{width:1px;height:22px;background:var(--border);flex-shrink:0}
+.rinfo{display:flex;align-items:center;gap:8px;flex:1;overflow:hidden;flex-wrap:wrap}
+.rname{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+.pill{font-size:10px;padding:2px 8px;border-radius:20px;border:1px solid var(--border);color:var(--m2);background:var(--s2);white-space:nowrap;flex-shrink:0}
+.topbtns{display:flex;gap:6px;flex-shrink:0}
+.tbtn{padding:5px 10px;border-radius:5px;border:1px solid var(--border);font-size:10px;font-weight:600;cursor:pointer;color:var(--m2);background:transparent;font-family:inherit;transition:all .15s;white-space:nowrap}
+.tbtn:hover{border-color:var(--b2);color:var(--text)}
+.tbtn.save{border-color:var(--acc);color:var(--acc)}
+.tbtn.save:hover{background:rgba(245,158,11,.1)}
+.tbtn.reset{border-color:var(--red);color:var(--red)}
+.tbtn.reset:hover{background:rgba(239,68,68,.1)}
+
+/* NAV */
+.nav{background:var(--s1);border-bottom:1px solid var(--border);display:flex;padding:0 20px;flex-shrink:0}
+.ntab{padding:9px 16px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;color:var(--muted);border:none;background:none;border-bottom:2px solid transparent;transition:all .15s}
+.ntab.active{color:var(--acc);border-bottom-color:var(--acc)}
+.ntab:hover:not(.active){color:var(--text)}
+
+/* PANELS */
+.main{flex:1;overflow:hidden;display:flex}
+.panel{display:none;flex:1;overflow-y:auto;padding:20px;flex-direction:column;gap:16px}
+.panel.active{display:flex}
+.panel::-webkit-scrollbar{width:5px}
+.panel::-webkit-scrollbar-thumb{background:var(--b2);border-radius:3px}
+
+/* CARDS */
+.card{background:var(--s1);border:1px solid var(--border);border-radius:9px;padding:18px}
+.ct{font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:7px}
+.ct::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* GRIDS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+
+/* FORM */
+.f{margin-bottom:11px}.f:last-child{margin-bottom:0}
+label{display:block;font-size:10px;color:var(--m2);margin-bottom:4px;font-weight:500}
+input[type=text],input[type=number],input[type=time],select{
+  width:100%;background:var(--s3);border:1px solid var(--border);border-radius:5px;
+  color:var(--text);font-size:11px;padding:6px 9px;outline:none;font-family:inherit;transition:border-color .15s
+}
+input:focus,select:focus{border-color:var(--acc)}
+select option{background:var(--s2)}
+
+/* POOL */
+.pool-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px}
+.pool-row{display:flex;align-items:center;gap:5px}
+.pool-num{font-size:10px;color:var(--muted);width:16px;text-align:right;flex-shrink:0;font-weight:700}
+.pdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.pool-row input{margin:0;flex:1}
+.pool-del{padding:2px 5px;border-radius:3px;border:1px solid rgba(239,68,68,.3);color:var(--red);font-size:9px;background:transparent;cursor:pointer;flex-shrink:0}
+
+/* VEH CARDS */
+.veh-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.vcard{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:13px}
+.vcard-hdr{display:flex;align-items:center;gap:7px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.vdot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.vcard-hdr input{margin:0;flex:1;font-weight:600;font-size:12px}
+.vslot{display:flex;align-items:center;gap:5px;margin-bottom:5px}
+.vsnum{font-size:10px;color:var(--muted);width:14px;text-align:center;flex-shrink:0}
+.vslot select{margin:0;flex:1;font-size:11px;padding:4px 6px}
+.pbtn{padding:3px 6px;border-radius:3px;border:1px solid var(--border);font-size:9px;font-weight:700;cursor:pointer;color:var(--muted);background:transparent;font-family:inherit;transition:all .15s}
+.pbtn.p-start{border-color:var(--acc);color:var(--acc);background:rgba(245,158,11,.08)}
+.pbtn.p-night{border-color:var(--purple);color:var(--purple);background:rgba(168,85,247,.08)}
+.rm-vslot{padding:2px 5px;border-radius:3px;border:1px solid rgba(239,68,68,.3);color:var(--red);font-size:9px;background:transparent;cursor:pointer}
+.add-vslot{width:100%;margin-top:6px;padding:5px;border-radius:4px;border:1px dashed var(--b2);color:var(--muted);background:transparent;cursor:pointer;font-size:10px;font-family:inherit;transition:all .15s}
+.add-vslot:hover{border-color:var(--acc);color:var(--acc)}
+
+/* CAR TABS */
+.ctabs{display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap}
+.ctab{padding:6px 14px;border-radius:7px;border:1px solid var(--border);font-size:11px;font-weight:600;cursor:pointer;color:var(--muted);background:var(--s2);transition:all .15s;display:flex;align-items:center;gap:5px}
+.ctab[data-c="1"].on{background:rgba(59,130,246,.15);border-color:var(--c1);color:var(--c1)}
+.ctab[data-c="2"].on{background:rgba(34,197,94,.15);border-color:var(--c2);color:var(--c2)}
+.ctab[data-c="3"].on{background:rgba(249,115,22,.15);border-color:var(--c3);color:var(--c3)}
+.ctab[data-c="4"].on{background:rgba(168,85,247,.15);border-color:var(--c4);color:var(--c4)}
+.ctab:hover:not(.on){border-color:var(--b2);color:var(--text)}
+.cdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+/* AVAIL */
+.avail-scroll{overflow-x:auto}
+.avail-inner{min-width:500px}
+.avail-axis{display:flex;margin-left:120px;margin-bottom:3px}
+.atick{flex:1;font-size:9px;color:var(--muted);text-align:center;border-left:1px solid var(--border);padding-left:2px}
+.arow{display:flex;align-items:center;gap:7px;margin-bottom:4px}
+.aname{font-size:11px;color:var(--text);width:113px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;display:flex;align-items:center;gap:5px}
+.atrack{flex:1;height:20px;background:var(--s3);border-radius:3px;position:relative;overflow:hidden;border:1px solid var(--border)}
+.aseg{position:absolute;top:0;height:100%}
+.aseg.avail{background:rgba(34,197,94,.75)}
+.aseg.maybe{background:rgba(245,158,11,.75)}
+.aseg.unavail{background:rgba(239,68,68,.45)}
+.aed{background:var(--s2);border:1px solid var(--border);border-radius:7px;padding:11px;margin-bottom:7px}
+.aed-hdr{display:flex;align-items:center;gap:6px;margin-bottom:7px;font-size:12px;font-weight:600}
+.aslot{display:flex;align-items:center;gap:5px;margin-bottom:4px;flex-wrap:wrap}
+.aslot select{margin:0;width:120px;font-size:10px;padding:4px 6px}
+.aslot input[type=time]{margin:0;width:86px;font-size:10px;padding:4px 6px}
+.del-btn{padding:2px 7px;border-radius:3px;border:1px solid rgba(239,68,68,.3);color:var(--red);font-size:9px;background:transparent;cursor:pointer;font-family:inherit}
+.add-ts{padding:3px 9px;border-radius:3px;border:1px solid var(--blue);color:var(--blue);font-size:10px;background:transparent;cursor:pointer;font-family:inherit;margin-top:4px}
+.legend{display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.litem{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--m2)}
+.ldot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+
+/* PLAN */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:14px}
+.sc{background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}
+.sv{font-size:26px;font-weight:700;color:var(--acc);line-height:1}
+.sl{font-size:9px;color:var(--muted);letter-spacing:.08em;margin-top:3px;text-transform:uppercase}
+
+/* GANTT */
+.gantt-scroll{overflow-x:auto;width:100%}
+.gantt-inner{min-width:600px}
+.g-hdr{display:flex;align-items:flex-end;margin-bottom:3px}
+.g-spacer{width:140px;flex-shrink:0}
+.g-ticks{flex:1;position:relative;height:20px}
+.g-tick{position:absolute;font-size:9px;color:var(--muted);transform:translateX(-50%);white-space:nowrap;bottom:0}
+.g-tick-line{position:absolute;top:0;bottom:0;width:1px;background:var(--border)}
+.grow{display:flex;align-items:center;margin-bottom:4px}
+.glbl{font-size:11px;width:140px;flex-shrink:0;padding-right:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;display:flex;align-items:center;gap:5px}
+.gtrack{flex:1;height:24px;background:var(--s3);border-radius:3px;position:relative;overflow:hidden;border:1px solid var(--border)}
+/* unavail overlay */
+.g-unavail{position:absolute;top:0;height:100%;background:rgba(239,68,68,.1);border-left:1px solid rgba(239,68,68,.25);pointer-events:none;z-index:0}
+/* segments */
+.gseg{position:absolute;top:2px;height:20px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;overflow:hidden;white-space:nowrap;cursor:grab;user-select:none;z-index:2;transition:box-shadow .1s}
+.gseg:active{cursor:grabbing}
+.gseg.dragging{opacity:.7;box-shadow:0 0 0 2px var(--acc);z-index:100;cursor:grabbing}
+.gseg.blocked{box-shadow:0 0 0 2px var(--red) !important}
+.gseg.pit{background:rgba(255,255,255,.07);border:1px solid var(--b2);cursor:default;z-index:1}
+.gseg.night{filter:brightness(.62)}
+
+/* TABLE */
+.stint-scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+thead th{background:var(--s3);color:var(--muted);padding:7px 10px;text-align:left;font-weight:700;letter-spacing:.05em;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;z-index:1}
+tbody td{padding:5px 10px;border-bottom:1px solid var(--s3);white-space:nowrap}
+tbody tr:hover td{background:var(--s2)}
+.pit-row td{color:rgba(245,158,11,.5);font-style:italic}
+.badge{font-size:9px;padding:1px 6px;border-radius:9px;font-weight:600}
+.bn{background:rgba(168,85,247,.15);color:#c084fc}
+.bd{background:rgba(245,158,11,.1);color:#fbbf24}
+
+/* DIST */
+.drow{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.dname{font-size:11px;width:130px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;display:flex;align-items:center;gap:5px}
+.dbar-w{flex:1;height:7px;background:var(--s3);border-radius:4px;overflow:hidden}
+.dbar{height:100%;border-radius:4px}
+.dcnt{font-size:11px;color:var(--m2);width:30px;text-align:right;flex-shrink:0}
+
+/* BTNS */
+.btn{padding:8px 16px;border-radius:6px;border:1px solid var(--border);font-size:11px;font-weight:700;letter-spacing:.05em;cursor:pointer;transition:all .15s;font-family:inherit;display:inline-flex;align-items:center;gap:5px}
+.btn-p{background:var(--acc);border-color:var(--acc);color:#0a0a0f}
+.btn-p:hover{opacity:.85}
+.btn-lg{padding:10px 24px;font-size:12px}
+.btn-row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:none;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:24px;min-width:300px;max-width:420px;width:90%}
+.modal h3{font-size:14px;font-weight:700;margin-bottom:8px}
+.modal p{font-size:12px;color:var(--m2);margin-bottom:18px;line-height:1.6}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end}
+.modal .btn-cancel{background:transparent;color:var(--m2)}
+.modal .btn-danger{background:var(--red);border-color:var(--red);color:#fff}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--s1);border:1px solid var(--border);border-radius:7px;padding:10px 16px;font-size:11px;font-weight:600;z-index:2000;transform:translateY(60px);opacity:0;transition:all .25s;pointer-events:none}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.ok{border-color:rgba(34,197,94,.5);color:var(--green)}
+.toast.err{border-color:rgba(239,68,68,.5);color:var(--red)}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo">
+    <span style="font-size:18px">&#127022;</span>
+    <div><div class="lt">SPR STINTPLANER</div><div class="ls">SNAIL PACE RACING</div></div>
+  </div>
+  <div class="tdiv"></div>
+  <div class="rinfo">
+    <span class="rname" id="topName">SPR Charity 2026</span>
+    <span class="pill" id="topStart">Start: 07:00</span>
+    <span class="pill" id="topDur">24h</span>
+    <span class="pill" id="topStint">Stint: 60 Min</span>
+  </div>
+  <div class="topbtns">
+    <button class="tbtn save" onclick="saveData()">&#128190; Speichern</button>
+    <button class="tbtn" onclick="exportJSON()">&#8599; Export</button>
+    <label class="tbtn" style="cursor:pointer">&#8601; Import<input type="file" accept=".json" style="display:none" onchange="importJSON(event)"></label>
+    <button class="tbtn reset" onclick="showReset()">&#8635; Reset</button>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav">
+  <button class="ntab active" onclick="goTab('setup',this)">Setup</button>
+  <button class="ntab" onclick="goTab('fahrer',this)">Fahrer</button>
+  <button class="ntab" onclick="goTab('verfuegbar',this)">Verfuegbarkeit</button>
+  <button class="ntab" onclick="goTab('plan',this)">Stintplan</button>
+</div>
+
+<div class="main">
+
+<!-- SETUP -->
+<div class="panel active" id="tab-setup">
+  <div class="g2">
+    <div class="card">
+      <div class="ct">Rennen</div>
+      <div class="f"><label>Rennname</label><input type="text" id="raceName" value="SPR Charity 2026" oninput="updateTop();autoSave()"></div>
+      <div class="g2">
+        <div class="f"><label>Startzeit</label><input type="time" id="startTime" value="07:00" oninput="updateTop();autoSave()"></div>
+        <div class="f"><label>Dauer (Stunden)</label><input type="number" id="raceDur" value="24" min="0.5" max="72" step="0.5" oninput="updateTop();autoSave()"></div>
+      </div>
+      <div class="g2">
+        <div class="f"><label>Stintlaenge (Min)</label><input type="number" id="stintLen" value="60" min="5" max="300" oninput="updateTop();autoSave()"></div>
+        <div class="f"><label>Boxenstopp (Min)</label><input type="number" id="pitDur" value="3" min="1" max="60" oninput="autoSave()"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ct">Tag / Nacht</div>
+      <div class="g2">
+        <div class="f"><label>Sonnenaufgang (Uhr)</label><input type="number" id="sunrise" value="7" min="0" max="12" oninput="autoSave()"></div>
+        <div class="f"><label>Sonnenuntergang (Uhr)</label><input type="number" id="sunset" value="21" min="12" max="24" oninput="autoSave()"></div>
+      </div>
+      <div style="font-size:10px;color:var(--m2);line-height:1.7;margin-top:6px">Stints nachts werden als <span style="color:#c084fc;font-weight:700">Nachtstints</span> markiert und bei der Planung beruecksichtigt.</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ct">Fahrzeugnamen</div>
+    <div class="g4" id="carNameInputs"></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-p btn-lg" onclick="goTab('fahrer',document.querySelectorAll('.ntab')[1])">Weiter: Fahrer &rarr;</button>
+  </div>
+</div>
+
+<!-- FAHRER -->
+<div class="panel" id="tab-fahrer">
+  <div class="card">
+    <div class="ct">Fahrerpool</div>
+    <div class="pool-grid" id="poolGrid"></div>
+    <button style="margin-top:10px;padding:5px 12px;border-radius:4px;border:1px dashed var(--b2);color:var(--m2);background:transparent;cursor:pointer;font-size:10px;font-family:inherit" onclick="addPoolDriver()">+ Fahrer hinzufuegen</button>
+  </div>
+  <div class="card">
+    <div class="ct">Fahrerzuweisung pro Fahrzeug</div>
+    <div class="veh-grid" id="vehGrid"></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-p btn-lg" onclick="goTab('verfuegbar',document.querySelectorAll('.ntab')[2])">Weiter: Verfuegbarkeit &rarr;</button>
+  </div>
+</div>
+
+<!-- VERFUEGBARKEIT -->
+<div class="panel" id="tab-verfuegbar">
+  <div class="card">
+    <div class="ct">Fahrzeug</div>
+    <div class="ctabs" id="availCtabs"></div>
+    <div class="ct" style="margin-top:2px">Verfuegbarkeit</div>
+    <div class="legend">
+      <div class="litem"><div class="ldot" style="background:rgba(34,197,94,.75)"></div>Verfuegbar</div>
+      <div class="litem"><div class="ldot" style="background:rgba(245,158,11,.75)"></div>Vielleicht</div>
+      <div class="litem"><div class="ldot" style="background:rgba(239,68,68,.45)"></div>Nicht verfuegbar</div>
+    </div>
+    <div class="avail-scroll"><div class="avail-inner">
+      <div class="avail-axis" id="availAxis"></div>
+      <div id="availOverview"></div>
+    </div></div>
+  </div>
+  <div class="card">
+    <div class="ct">Zeitraeume bearbeiten</div>
+    <div id="availEditors"></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-p btn-lg" onclick="buildAndShow()">Plan berechnen &rarr;</button>
+  </div>
+</div>
+
+<!-- PLAN -->
+<div class="panel" id="tab-plan">
+  <div class="ctabs" id="planCtabs" style="margin-bottom:0"></div>
+  <div class="stat-grid" id="planStats"></div>
+  <div class="card">
+    <div class="ct">Race Timeline <span style="font-size:9px;color:var(--m2);font-weight:400;text-transform:none;letter-spacing:0">&nbsp;Stints per Drag &amp; Drop verschieben</span></div>
+    <div class="gantt-scroll"><div class="gantt-inner" id="ganttWrap"></div></div>
+  </div>
+  <div class="card">
+    <div class="ct">Stintplan</div>
+    <div class="stint-scroll"><table><thead><tr><th>#</th><th>Fahrer</th><th>Start</th><th>Ende</th><th>Dauer</th><th>Bedingung</th></tr></thead><tbody id="stintBody"></tbody></table></div>
+  </div>
+  <div class="card">
+    <div class="ct">Fahrer-Verteilung</div>
+    <div id="drvDist"></div>
+  </div>
+</div>
+
+</div><!-- .main -->
+</div><!-- .app -->
+
+<!-- RESET MODAL -->
+<div class="modal-bg" id="resetModal">
+  <div class="modal">
+    <h3>Alle Daten zuruecksetzen?</h3>
+    <p>Alle eingegebenen Daten werden geloescht und auf Standardwerte zurueckgesetzt. Dieser Vorgang kann nicht rueckgaengig gemacht werden.</p>
+    <div class="modal-btns">
+      <button class="btn btn-cancel" onclick="closeReset()">Abbrechen</button>
+      <button class="btn btn-danger" onclick="doReset()">Zuruecksetzen</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ===================== COLORS =====================
+var CAR_COLORS = ['','#3b82f6','#22c55e','#f97316','#a855f7'];
+var DRV_COLORS = ['#3b82f6','#22c55e','#f97316','#a855f7','#ec4899','#06b6d4','#84cc16','#f43f5e','#8b5cf6','#14b8a6','#fb923c','#a3e635'];
+
+// ===================== STATE =====================
+var S = {
+  pool: ['','','','',''],  // global driver pool names
+  cars: {
+    1:{name:'Fahrzeug 1', slots:[]},
+    2:{name:'Fahrzeug 2', slots:[]},
+    3:{name:'Fahrzeug 3', slots:[]},
+    4:{name:'Fahrzeug 4', slots:[]}
+  },
+  avail: {},   // avail[carNum][poolIdx] = [{type,from,to}]
+  plans: {1:[],2:[],3:[],4:[]}
+};
+
+// slot = {poolIdx: number, prefStart: bool, prefNight: bool}
+function initSlots() {
+  for (var c = 1; c <= 4; c++) {
+    if (!S.cars[c].slots || S.cars[c].slots.length === 0) {
+      S.cars[c].slots = [];
+      for (var i = 0; i < 5; i++) S.cars[c].slots.push({poolIdx:-1, prefStart:false, prefNight:false});
+    }
+  }
+}
+
+function getAvail(carNum, poolIdx) {
+  var key = carNum + '_' + poolIdx;
+  if (!S.avail[key]) S.avail[key] = [{type:'avail', from:0, to:100}];
+  return S.avail[key];
+}
+
+var activeAvailCar = 1;
+var activePlanCar = 1;
+
+// ===================== HELPERS =====================
+function padN(n){return String(Math.floor(n)).padStart(2,'0')}
+function fmtT(m){m=Math.round(m);return padN(Math.floor(m/60)%24)+':'+padN(m%60)}
+function getRaceMins(){return Math.round(parseFloat(document.getElementById('raceDur').value||24)*60)}
+function getStartMins(){var p=(document.getElementById('startTime').value||'07:00').split(':');return parseInt(p[0])*60+parseInt(p[1])}
+function timeToPct(t){
+  var rm=getRaceMins(),sm=getStartMins(),p=t.split(':');
+  var m=parseInt(p[0])*60+parseInt(p[1]);
+  if(m<sm)m+=24*60;
+  return Math.max(0,Math.min(100,(m-sm)/rm*100));
+}
+function pctToMins(pct){return getStartMins()+getRaceMins()*pct/100}
+function getCarColor(n){return CAR_COLORS[n]||'#888'}
+function getDriverName(poolIdx){
+  if(poolIdx<0||poolIdx>=S.pool.length)return '';
+  return (S.pool[poolIdx]&&S.pool[poolIdx].trim())?S.pool[poolIdx].trim():'';
+}
+function getDotHtml(color,size){size=size||7;return '<span style="display:inline-block;width:'+size+'px;height:'+size+'px;border-radius:50%;background:'+color+';flex-shrink:0"></span>'}
+
+// ===================== TOPBAR =====================
+function updateTop(){
+  document.getElementById('topName').textContent=document.getElementById('raceName').value||'SPR Rennen';
+  document.getElementById('topStart').textContent='Start: '+(document.getElementById('startTime').value||'07:00');
+  document.getElementById('topDur').textContent=(document.getElementById('raceDur').value||24)+'h';
+  document.getElementById('topStint').textContent='Stint: '+(document.getElementById('stintLen').value||60)+' Min';
+}
+
+// ===================== TABS =====================
+function goTab(id,btn){
+  syncAll();
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active')});
+  document.querySelectorAll('.ntab').forEach(function(t){t.classList.remove('active')});
+  document.getElementById('tab-'+id).classList.add('active');
+  if(btn)btn.classList.add('active');
+  if(id==='fahrer'){renderPool();renderVehGrid();}
+  if(id==='verfuegbar'){renderAvailCtabs();renderAvailAxis();renderAvailOverview();renderAvailEditors();}
+  if(id==='plan'){renderPlanCtabs();renderPlanView();}
+}
+
+// ===================== SYNC =====================
+function syncAll(){
+  // car names
+  for(var c=1;c<=4;c++){
+    var ni=document.getElementById('cname'+c);
+    if(ni)S.cars[c].name=ni.value||('Fahrzeug '+c);
+  }
+  // pool names
+  S.pool.forEach(function(_,i){
+    var inp=document.getElementById('pool_'+i);
+    if(inp)S.pool[i]=inp.value;
+  });
+  // veh slots
+  for(var c=1;c<=4;c++){
+    S.cars[c].slots.forEach(function(slot,si){
+      var sel=document.getElementById('vslot_'+c+'_'+si);
+      if(sel)slot.poolIdx=parseInt(sel.value);
+    });
+  }
+}
+
+// ===================== SETUP =====================
+function initSetup(){
+  var wrap=document.getElementById('carNameInputs');
+  var html='';
+  for(var c=1;c<=4;c++){
+    html+='<div style="display:flex;flex-direction:column;gap:4px">'
+      +'<label style="display:flex;align-items:center;gap:5px">'+getDotHtml(CAR_COLORS[c],8)+' Fahrzeug '+c+'</label>'
+      +'<input type="text" id="cname'+c+'" value="'+S.cars[c].name+'" oninput="S.cars['+c+'].name=this.value;updateVehTabs();autoSave()">'
+      +'</div>';
+  }
+  wrap.innerHTML=html;
+}
+
+function updateVehTabs(){
+  // refresh car tab labels everywhere
+  document.querySelectorAll('.ctab').forEach(function(t){
+    var c=parseInt(t.dataset.c);
+    if(c) t.lastChild.textContent=S.cars[c].name;
+  });
+}
+
+// ===================== POOL =====================
+function renderPool(){
+  var wrap=document.getElementById('poolGrid');
+  var html='';
+  S.pool.forEach(function(name,i){
+    var col=DRV_COLORS[i%DRV_COLORS.length];
+    html+='<div class="pool-row">'
+      +'<span class="pool-num">'+getDotHtml(col,7)+'</span>'
+      +'<input type="text" id="pool_'+i+'" value="'+name+'" placeholder="Fahrer '+(i+1)+'" oninput="S.pool['+i+']=this.value;refreshVehDropdowns();autoSave()">'
+      +'<button class="pool-del" onclick="removePoolDriver('+i+')">x</button>'
+      +'</div>';
+  });
+  wrap.innerHTML=html;
+}
+
+function addPoolDriver(){
+  syncAll();
+  S.pool.push('');
+  // add slot to each car
+  for(var c=1;c<=4;c++) S.cars[c].slots.push({poolIdx:-1,prefStart:false,prefNight:false});
+  renderPool();
+  renderVehGrid();
+  autoSave();
+}
+
+function removePoolDriver(idx){
+  syncAll();
+  S.pool.splice(idx,1);
+  // update slots: shift poolIdx
+  for(var c=1;c<=4;c++){
+    S.cars[c].slots.forEach(function(slot){
+      if(slot.poolIdx===idx) slot.poolIdx=-1;
+      else if(slot.poolIdx>idx) slot.poolIdx--;
+    });
+    // remove corresponding slot entry if needed
+    S.cars[c].slots = S.cars[c].slots.slice(0, S.pool.length);
+    while(S.cars[c].slots.length < S.pool.length) S.cars[c].slots.push({poolIdx:-1,prefStart:false,prefNight:false});
+  }
+  // remove avail entries for this poolIdx
+  Object.keys(S.avail).forEach(function(k){
+    var parts=k.split('_');
+    if(parseInt(parts[1])===idx) delete S.avail[k];
+  });
+  renderPool();
+  renderVehGrid();
+  autoSave();
+}
+
+function refreshVehDropdowns(){
+  for(var c=1;c<=4;c++){
+    S.cars[c].slots.forEach(function(slot,si){
+      var sel=document.getElementById('vslot_'+c+'_'+si);
+      if(!sel)return;
+      var cur=sel.value;
+      sel.innerHTML=buildPoolOptions(slot.poolIdx);
+    });
+  }
+}
+
+function buildPoolOptions(selected){
+  var html='<option value="-1">-- Kein Fahrer --</option>';
+  S.pool.forEach(function(name,i){
+    var display=name.trim()?name.trim():('Fahrer '+(i+1));
+    html+='<option value="'+i+'"'+(selected===i?' selected':'')+'>'+display+'</option>';
+  });
+  return html;
+}
+
+// ===================== VEH GRID =====================
+function renderVehGrid(){
+  var wrap=document.getElementById('vehGrid');
+  var html='';
+  for(var c=1;c<=4;c++){
+    var col=CAR_COLORS[c];
+    html+='<div class="vcard">'
+      +'<div class="vcard-hdr">'
+      +'<div class="vdot" style="background:'+col+'"></div>'
+      +'<input type="text" id="cname'+c+'" value="'+S.cars[c].name+'" oninput="S.cars['+c+'].name=this.value;updateVehTabs();autoSave()">'
+      +'</div>';
+    S.cars[c].slots.forEach(function(slot,si){
+      html+='<div class="vslot">'
+        +'<span class="vsnum">'+(si+1)+'</span>'
+        +'<select id="vslot_'+c+'_'+si+'" onchange="S.cars['+c+'].slots['+si+'].poolIdx=parseInt(this.value);autoSave()">'
+        +buildPoolOptions(slot.poolIdx)
+        +'</select>'
+        +'<button class="pbtn'+(slot.prefStart?' p-start':'')+'" onclick="toggleSlotPref('+c+','+si+',\'prefStart\',this)">S</button>'
+        +'<button class="pbtn'+(slot.prefNight?' p-night':'')+'" onclick="toggleSlotPref('+c+','+si+',\'prefNight\',this)">N</button>'
+        +'<button class="rm-vslot" onclick="removeVSlot('+c+','+si+')">x</button>'
+        +'</div>';
+    });
+    html+='<button class="add-vslot" onclick="addVSlot('+c+')">+ Fahrer-Slot hinzufuegen</button>'
+      +'</div>';
+  }
+  wrap.innerHTML=html;
+}
+
+function toggleSlotPref(c,si,key,btn){
+  S.cars[c].slots[si][key]=!S.cars[c].slots[si][key];
+  btn.classList.toggle(key==='prefStart'?'p-start':'p-night', S.cars[c].slots[si][key]);
+  autoSave();
+}
+
+function addVSlot(c){
+  S.cars[c].slots.push({poolIdx:-1,prefStart:false,prefNight:false});
+  renderVehGrid();
+  autoSave();
+}
+
+function removeVSlot(c,si){
+  S.cars[c].slots.splice(si,1);
+  renderVehGrid();
+  autoSave();
+}
+
+// ===================== AVAIL TABS =====================
+function renderAvailCtabs(){
+  var wrap=document.getElementById('availCtabs');
+  var html='';
+  for(var c=1;c<=4;c++){
+    html+='<button class="ctab'+(c===activeAvailCar?' on':'')+'" data-c="'+c+'" onclick="selectAvailCar('+c+',this.parentElement)">'
+      +'<span class="cdot" style="background:'+CAR_COLORS[c]+'"></span>'+S.cars[c].name+'</button>';
+  }
+  wrap.innerHTML=html;
+}
+
+function selectAvailCar(n,container){
+  syncAll();
+  activeAvailCar=n;
+  container.querySelectorAll('.ctab').forEach(function(t){t.classList.remove('on')});
+  container.querySelector('.ctab[data-c="'+n+'"]').classList.add('on');
+  renderAvailAxis();
+  renderAvailOverview();
+  renderAvailEditors();
+}
+
+// ===================== AVAIL AXIS =====================
+function renderAvailAxis(){
+  var rm=getRaceMins(),sm=getStartMins(),steps=12;
+  var html='';
+  for(var i=0;i<=steps;i++){
+    html+='<div class="atick">'+fmtT(sm+rm/steps*i)+'</div>';
+  }
+  document.getElementById('availAxis').innerHTML=html;
+}
+
+// ===================== AVAIL OVERVIEW =====================
+function renderAvailOverview(){
+  var c=activeAvailCar;
+  var html='';
+  var slots=S.cars[c].slots;
+  var hasAny=false;
+  slots.forEach(function(slot,si){
+    if(slot.poolIdx<0)return;
+    var name=getDriverName(slot.poolIdx);
+    if(!name)return;
+    hasAny=true;
+    var segs=getAvail(c,slot.poolIdx);
+    var col=DRV_COLORS[slot.poolIdx%DRV_COLORS.length];
+    html+='<div class="arow">'
+      +'<div class="aname">'+getDotHtml(col,7)+'<span>'+name+'</span></div>'
+      +'<div class="atrack">';
+    segs.forEach(function(seg){
+      html+='<div class="aseg '+seg.type+'" style="left:'+seg.from+'%;width:'+(seg.to-seg.from)+'%"></div>';
+    });
+    html+='</div></div>';
+  });
+  if(!hasAny) html='<div style="font-size:11px;color:var(--muted);padding:8px 0">Noch keine Fahrer zugewiesen. Gehe zu Fahrer.</div>';
+  document.getElementById('availOverview').innerHTML=html;
+}
+
+// ===================== AVAIL EDITORS =====================
+function renderAvailEditors(){
+  var c=activeAvailCar;
+  var slots=S.cars[c].slots;
+  var html='';
+  slots.forEach(function(slot,si){
+    if(slot.poolIdx<0)return;
+    var name=getDriverName(slot.poolIdx);
+    if(!name)return;
+    var pi=slot.poolIdx;
+    var col=DRV_COLORS[pi%DRV_COLORS.length];
+    var segs=getAvail(c,pi);
+    var rm=getRaceMins(),sm=getStartMins();
+    html+='<div class="aed">'
+      +'<div class="aed-hdr">'+getDotHtml(col,8)+'<span>'+name+'</span></div>';
+    segs.forEach(function(seg,segI){
+      var ft=fmtT(sm+rm*seg.from/100);
+      var tt=fmtT(sm+rm*seg.to/100);
+      html+='<div class="aslot">'
+        +'<select onchange="updSegType('+c+','+pi+','+segI+',this.value)">'
+        +'<option value="avail"'+(seg.type==='avail'?' selected':'')+'>Verfuegbar</option>'
+        +'<option value="maybe"'+(seg.type==='maybe'?' selected':'')+'>Vielleicht</option>'
+        +'<option value="unavail"'+(seg.type==='unavail'?' selected':'')+'>Nicht verfuegbar</option>'
+        +'</select>'
+        +'<span style="font-size:10px;color:var(--m2)">von</span>'
+        +'<input type="time" value="'+ft+'" onchange="updSegFrom('+c+','+pi+','+segI+',this.value)">'
+        +'<span style="font-size:10px;color:var(--m2)">bis</span>'
+        +'<input type="time" value="'+tt+'" onchange="updSegTo('+c+','+pi+','+segI+',this.value)">'
+        +'<button class="del-btn" onclick="delSeg('+c+','+pi+','+segI+')">Loeschen</button>'
+        +'</div>';
+    });
+    html+='<button class="add-ts" onclick="addSeg('+c+','+pi+')">+ Zeitraum hinzufuegen</button>'
+      +'</div>';
+  });
+  if(!html) html='<div style="font-size:11px;color:var(--muted)">Noch keine Fahrer zugewiesen.</div>';
+  document.getElementById('availEditors').innerHTML=html;
+}
+
+function updSegType(c,pi,si,v){getAvail(c,pi)[si].type=v;renderAvailOverview();autoSave();}
+function updSegFrom(c,pi,si,v){getAvail(c,pi)[si].from=timeToPct(v);renderAvailOverview();autoSave();}
+function updSegTo(c,pi,si,v){getAvail(c,pi)[si].to=timeToPct(v);renderAvailOverview();autoSave();}
+function delSeg(c,pi,si){getAvail(c,pi).splice(si,1);renderAvailEditors();renderAvailOverview();autoSave();}
+function addSeg(c,pi){getAvail(c,pi).push({type:'avail',from:0,to:100});renderAvailEditors();renderAvailOverview();autoSave();}
+
+// ===================== PLAN BUILDER =====================
+function isAvailAt(c,pi,elapsedMins){
+  var segs=getAvail(c,pi),rm=getRaceMins(),pct=elapsedMins/rm*100,result='unavail';
+  segs.forEach(function(seg){
+    if(pct>=seg.from&&pct<=seg.to){
+      if(seg.type==='avail')result='avail';
+      else if(seg.type==='maybe'&&result!=='avail')result='maybe';
+    }
+  });
+  return result;
+}
+
+function buildPlan(carNum){
+  var rm=getRaceMins();
+  var stintM=parseInt(document.getElementById('stintLen').value||60);
+  var pitM=parseInt(document.getElementById('pitDur').value||3);
+  var sm=getStartMins();
+  var sunriseH=parseInt(document.getElementById('sunrise').value||7);
+  var sunsetH=parseInt(document.getElementById('sunset').value||21);
+
+  // Get valid driver slots (poolIdx>=0 and has a name)
+  var slots=S.cars[carNum].slots.filter(function(s){return s.poolIdx>=0&&getDriverName(s.poolIdx)});
+
+  if(!slots.length) return [];
+
+  var plan=[],elapsed=0,stintNum=0,lastPI=-1;
+
+  while(elapsed<rm){
+    var remaining=rm-elapsed,dur=Math.min(stintM,remaining);
+    var midH=Math.floor((sm+elapsed+dur/2)/60)%24;
+    var isNight=midH<sunriseH||midH>=sunsetH;
+
+    // Score each driver
+    var bestSlot=null,bestScore=-99;
+    slots.forEach(function(slot){
+      var pi=slot.poolIdx;
+      var av=isAvailAt(carNum,pi,elapsed);
+      if(av==='unavail')return;
+      var score=av==='avail'?10:5;
+      if(pi!==lastPI)score+=3;
+      if(isNight&&slot.prefNight)score+=4;
+      if(!isNight&&slot.prefNight)score-=2;
+      if(stintNum===0&&slot.prefStart)score+=6;
+      var myStints=plan.filter(function(p){return!p.pit&&p.pi===pi}).length;
+      score-=myStints*0.5;
+      if(score>bestScore){bestScore=score;bestSlot=slot;}
+    });
+
+    if(!bestSlot){
+      // fallback: round robin ignoring avail
+      bestSlot=slots[stintNum%slots.length];
+    }
+
+    var pi=bestSlot.poolIdx;
+    var name=getDriverName(pi);
+    var col=DRV_COLORS[pi%DRV_COLORS.length];
+    var absStart=fmtT(sm+elapsed),absEnd=fmtT(sm+elapsed+dur);
+
+    plan.push({stintNum:stintNum+1,pit:false,driver:name,pi:pi,color:col,
+      absStart:absStart,absEnd:absEnd,duration:dur,isNight:isNight,
+      elapsedStart:elapsed,elapsedEnd:elapsed+dur});
+
+    lastPI=pi;elapsed+=dur;
+
+    if(elapsed<rm){
+      plan.push({stintNum:'PIT',pit:true,driver:'',pi:-1,color:'',
+        absStart:absEnd,absEnd:fmtT(sm+elapsed+pitM),duration:pitM,isNight:false,
+        elapsedStart:elapsed,elapsedEnd:elapsed+pitM});
+      elapsed+=pitM;
+    }
+    stintNum++;
+  }
+  return plan;
+}
+
+function buildAndShow(){
+  syncAll();
+  for(var c=1;c<=4;c++) S.plans[c]=buildPlan(c);
+  goTab('plan',document.querySelectorAll('.ntab')[3]);
+  autoSave();
+}
+
+// ===================== PLAN TAB =====================
+function renderPlanCtabs(){
+  var wrap=document.getElementById('planCtabs');
+  var html='';
+  for(var c=1;c<=4;c++){
+    html+='<button class="ctab'+(c===activePlanCar?' on':'')+'" data-c="'+c+'" onclick="selectPlanCar('+c+',this.parentElement)">'
+      +'<span class="cdot" style="background:'+CAR_COLORS[c]+'"></span>'+S.cars[c].name+'</button>';
+  }
+  wrap.innerHTML=html;
+}
+
+function selectPlanCar(n,container){
+  activePlanCar=n;
+  container.querySelectorAll('.ctab').forEach(function(t){t.classList.remove('on')});
+  container.querySelector('.ctab[data-c="'+n+'"]').classList.add('on');
+  renderPlanView();
+}
+
+function renderPlanView(){
+  var c=activePlanCar,plan=S.plans[c];
+  if(!plan||!plan.length){
+    document.getElementById('planStats').innerHTML='<div style="color:var(--muted);font-size:12px;grid-column:1/-1;padding:10px 0">Noch kein Plan berechnet. Gehe zu Verfuegbarkeit und klicke Plan berechnen.</div>';
+    document.getElementById('ganttWrap').innerHTML='';
+    document.getElementById('stintBody').innerHTML='';
+    document.getElementById('drvDist').innerHTML='';
+    return;
+  }
+
+  var stints=plan.filter(function(p){return!p.pit});
+  var pits=plan.filter(function(p){return p.pit});
+  var nights=stints.filter(function(p){return p.isNight});
+  var endTime=fmtT(getStartMins()+getRaceMins());
+
+  // Stats
+  document.getElementById('planStats').innerHTML=
+    '<div class="sc"><div class="sv">'+stints.length+'</div><div class="sl">Stints</div></div>'+
+    '<div class="sc"><div class="sv">'+pits.length+'</div><div class="sl">Boxenstopps</div></div>'+
+    '<div class="sc"><div class="sv" style="color:#c084fc">'+nights.length+'</div><div class="sl">Nacht</div></div>'+
+    '<div class="sc"><div class="sv" style="font-size:20px">'+endTime+'</div><div class="sl">Rennende</div></div>';
+
+  renderGantt(c,plan);
+  renderTable(c,plan);
+  renderDist(c,plan);
+}
+
+// ===================== GANTT =====================
+function renderGantt(carNum,plan){
+  var rm=getRaceMins(),sm=getStartMins();
+  var wrap=document.getElementById('ganttWrap');
+
+  // Build axis with fine ticks every hour (or every 2h for long races)
+  var hourMs=60, totalH=rm/60;
+  var tickStep = totalH<=24?1:2;
+  var tickCount=Math.floor(rm/60/tickStep);
+
+  var axisHtml='<div class="g-hdr"><div class="g-spacer"></div><div class="g-ticks" style="flex:1;position:relative;height:18px">';
+  for(var i=0;i<=tickCount;i++){
+    var pct=(i*tickStep*60/rm*100).toFixed(3);
+    var timeStr=fmtT(sm+i*tickStep*60);
+    axisHtml+='<div class="g-tick-line" style="left:'+pct+'%"></div>';
+    axisHtml+='<div class="g-tick" style="left:'+pct+'%">'+timeStr+'</div>';
+  }
+  axisHtml+='</div></div>';
+
+  // Get unique drivers in this plan
+  var driverPIs=[];
+  plan.forEach(function(p){if(!p.pit&&p.pi>=0&&driverPIs.indexOf(p.pi)<0)driverPIs.push(p.pi);});
+
+  var rowsHtml='';
+  driverPIs.forEach(function(pi){
+    var name=getDriverName(pi)||('Fahrer '+(pi+1));
+    var col=DRV_COLORS[pi%DRV_COLORS.length];
+
+    // Build unavail overlays
+    var segs=getAvail(carNum,pi);
+    var overlays='';
+    // show unavail regions
+    // First compute available intervals and invert for overlay
+    var unavailSegs=segs.filter(function(s){return s.type==='unavail'});
+    unavailSegs.forEach(function(seg){
+      overlays+='<div class="g-unavail" style="left:'+seg.from+'%;width:'+(seg.to-seg.from)+'%"></div>';
+    });
+
+    // Driver stints
+    var stintSegs='';
+    plan.forEach(function(p,idx){
+      if(p.pit){
+        // show pit on every row subtly
+        var l=(p.elapsedStart/rm*100).toFixed(3);
+        var w=Math.max(0.15,(p.duration/rm*100)).toFixed(3);
+        stintSegs+='<div class="gseg pit" style="left:'+l+'%;width:'+w+'%"></div>';
+        return;
+      }
+      if(p.pi!==pi)return;
+      var l=(p.elapsedStart/rm*100).toFixed(3);
+      var w=(p.duration/rm*100).toFixed(3);
+      var nc=p.isNight?' night':'';
+      stintSegs+='<div class="gseg'+nc+'" '
+        +'data-idx="'+idx+'" data-car="'+carNum+'" data-pi="'+pi+'" '
+        +'style="left:'+l+'%;width:'+w+'%;background:'+col+'" '
+        +'title="Stint '+p.stintNum+': '+p.absStart+'-'+p.absEnd+'" '
+        +'onmousedown="startDrag(event,'+carNum+','+idx+')">'
+        +(parseFloat(w)>2?p.stintNum:'')
+        +'</div>';
+    });
+
+    rowsHtml+='<div class="grow" id="grow_'+carNum+'_'+pi+'">'
+      +'<div class="glbl">'+getDotHtml(col,7)+'<span>'+name+'</span></div>'
+      +'<div class="gtrack" data-car="'+carNum+'" data-pi="'+pi+'">'+overlays+stintSegs+'</div>'
+      +'</div>';
+  });
+
+  wrap.innerHTML=axisHtml+rowsHtml;
+}
+
+// ===================== DRAG & DROP =====================
+var drag={active:false,idx:-1,car:-1,el:null,startX:0,origLeft:0,trackW:0,trackEl:null,origElapsed:0,pctPerPx:0};
+
+function startDrag(e,carNum,planIdx){
+  var plan=S.plans[carNum];
+  if(!plan||!plan[planIdx])return;
+  var p=plan[planIdx];
+  if(p.pit)return;
+  e.preventDefault();
+  var el=e.currentTarget;
+  var track=el.parentElement;
+  var trackRect=track.getBoundingClientRect();
+  drag={
+    active:true,idx:planIdx,car:carNum,el:el,
+    startX:e.clientX,
+    origLeft:parseFloat(el.style.left),
+    trackW:trackRect.width,
+    trackEl:track,
+    origElapsed:p.elapsedStart,
+    pctPerPx:100/trackRect.width
+  };
+  el.classList.add('dragging');
+  document.addEventListener('mousemove',onDrag);
+  document.addEventListener('mouseup',endDrag);
+}
+
+function onDrag(e){
+  if(!drag.active)return;
+  var dx=e.clientX-drag.startX;
+  var newLeft=Math.max(0,Math.min(99,drag.origLeft+dx*drag.pctPerPx));
+  drag.el.style.left=newLeft.toFixed(3)+'%';
+}
+
+function endDrag(e){
+  if(!drag.active)return;
+  document.removeEventListener('mousemove',onDrag);
+  document.removeEventListener('mouseup',endDrag);
+
+  var dx=e.clientX-drag.startX;
+  var newPct=Math.max(0,drag.origLeft+dx*drag.pctPerPx);
+  var rm=getRaceMins(),sm=getStartMins();
+  var newElapsed=Math.round(newPct/100*rm);
+
+  var plan=S.plans[drag.car];
+  var p=plan[drag.idx];
+  var pi=p.pi;
+
+  // Check if driver is available at new position
+  var avail=isAvailAt(drag.car,pi,newElapsed);
+  if(avail==='unavail'){
+    // Snap back
+    drag.el.style.left=drag.origLeft.toFixed(3)+'%';
+    drag.el.classList.remove('dragging');
+    drag.el.classList.add('blocked');
+    setTimeout(function(){drag.el.classList.remove('blocked');},400);
+    showToast('Fahrer nicht verfuegbar in diesem Zeitraum!','err');
+    drag.active=false;
+    return;
+  }
+
+  // Apply new position
+  var diff=newElapsed-p.elapsedStart;
+  p.elapsedStart=newElapsed;
+  p.elapsedEnd=newElapsed+p.duration;
+  p.absStart=fmtT(sm+newElapsed);
+  p.absEnd=fmtT(sm+newElapsed+p.duration);
+
+  // Update night status
+  var midH=Math.floor((sm+newElapsed+p.duration/2)/60)%24;
+  var sunriseH=parseInt(document.getElementById('sunrise').value||7);
+  var sunsetH=parseInt(document.getElementById('sunset').value||21);
+  p.isNight=midH<sunriseH||midH>=sunsetH;
+
+  drag.el.classList.remove('dragging');
+  drag.active=false;
+
+  // Re-render
+  renderGantt(drag.car,plan);
+  renderTable(drag.car,plan);
+  autoSave();
+}
+
+// ===================== TABLE =====================
+function renderTable(carNum,plan){
+  var rows='';
+  plan.forEach(function(p){
+    if(p.pit){
+      rows+='<tr class="pit-row"><td style="color:var(--muted)">&#9632;</td><td style="color:rgba(245,158,11,.5);font-style:italic">Boxenstopp</td><td>'+p.absStart+'</td><td>'+p.absEnd+'</td><td>'+p.duration+' Min</td><td></td></tr>';
+    } else {
+      var badge=p.isNight?'<span class="badge bn">Nacht</span>':'<span class="badge bd">Tag</span>';
+      rows+='<tr>'
+        +'<td style="color:var(--muted)">'+p.stintNum+'</td>'
+        +'<td>'+getDotHtml(p.color,7)+'&nbsp;'+p.driver+'</td>'
+        +'<td>'+p.absStart+'</td><td>'+p.absEnd+'</td>'
+        +'<td>'+p.duration+' Min</td><td>'+badge+'</td>'
+        +'</tr>';
+    }
+  });
+  document.getElementById('stintBody').innerHTML=rows;
+}
+
+// ===================== DIST =====================
+function renderDist(carNum,plan){
+  var stints=plan.filter(function(p){return!p.pit});
+  var counts={};
+  stints.forEach(function(p){counts[p.pi]=(counts[p.pi]||0)+1;});
+  var maxC=Math.max.apply(null,Object.values(counts).concat([1]));
+  var html='';
+  Object.keys(counts).forEach(function(pi){
+    pi=parseInt(pi);
+    var name=getDriverName(pi)||('Fahrer '+(pi+1));
+    var cnt=counts[pi]||0;
+    var pct=Math.round(cnt/maxC*100);
+    var col=DRV_COLORS[pi%DRV_COLORS.length];
+    html+='<div class="drow">'
+      +'<div class="dname">'+getDotHtml(col,7)+'<span>'+name+'</span></div>'
+      +'<div class="dbar-w"><div class="dbar" style="width:'+pct+'%;background:'+col+'"></div></div>'
+      +'<div class="dcnt">'+cnt+'x</div></div>';
+  });
+  document.getElementById('drvDist').innerHTML=html||'<span style="color:var(--muted);font-size:11px">Keine Daten</span>';
+}
+
+// ===================== SAVE / LOAD =====================
+var autoSaveTimer=null;
+function autoSave(){
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer=setTimeout(saveData,1500);
+}
+
+function collectFormData(){
+  return {
+    raceName: document.getElementById('raceName').value,
+    startTime: document.getElementById('startTime').value,
+    raceDur: document.getElementById('raceDur').value,
+    stintLen: document.getElementById('stintLen').value,
+    pitDur: document.getElementById('pitDur').value,
+    sunrise: document.getElementById('sunrise').value,
+    sunset: document.getElementById('sunset').value
+  };
+}
+
+function saveData(){
+  syncAll();
+  var data={
+    form: collectFormData(),
+    pool: S.pool,
+    cars: S.cars,
+    avail: S.avail,
+    plans: S.plans,
+    activeAvailCar: activeAvailCar,
+    activePlanCar: activePlanCar
+  };
+  try{
+    localStorage.setItem('spr_stintplaner',JSON.stringify(data));
+    showToast('Gespeichert','ok');
+  }catch(e){
+    showToast('Speichern fehlgeschlagen','err');
+  }
+}
+
+function loadData(){
+  try{
+    var raw=localStorage.getItem('spr_stintplaner');
+    if(!raw)return false;
+    var data=JSON.parse(raw);
+    // Restore form
+    if(data.form){
+      Object.keys(data.form).forEach(function(k){
+        var el=document.getElementById(k);
+        if(el)el.value=data.form[k];
+      });
+    }
+    if(data.pool)S.pool=data.pool;
+    if(data.cars)S.cars=data.cars;
+    if(data.avail)S.avail=data.avail;
+    if(data.plans)S.plans=data.plans;
+    if(data.activeAvailCar)activeAvailCar=data.activeAvailCar;
+    if(data.activePlanCar)activePlanCar=data.activePlanCar;
+    return true;
+  }catch(e){return false;}
+}
+
+function exportJSON(){
+  syncAll();
+  var data={
+    form:collectFormData(),
+    pool:S.pool,cars:S.cars,avail:S.avail,plans:S.plans
+  };
+  var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='SPR_Stintplan_'+(document.getElementById('raceName').value||'export').replace(/\s/g,'_')+'.json';
+  a.click();
+  showToast('Exportiert','ok');
+}
+
+function importJSON(e){
+  var file=e.target.files[0];
+  if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      var data=JSON.parse(ev.target.result);
+      if(data.form){Object.keys(data.form).forEach(function(k){var el=document.getElementById(k);if(el)el.value=data.form[k];});}
+      if(data.pool)S.pool=data.pool;
+      if(data.cars)S.cars=data.cars;
+      if(data.avail)S.avail=data.avail;
+      if(data.plans)S.plans=data.plans;
+      updateTop();
+      initSetup();
+      renderPool();
+      renderVehGrid();
+      showToast('Importiert','ok');
+    }catch(err){showToast('Import fehlgeschlagen','err');}
+  };
+  reader.readAsText(file);
+}
+
+// ===================== RESET =====================
+function showReset(){document.getElementById('resetModal').classList.add('open');}
+function closeReset(){document.getElementById('resetModal').classList.remove('open');}
+function doReset(){
+  closeReset();
+  localStorage.removeItem('spr_stintplaner');
+  S.pool=['','','','',''];
+  S.avail={};
+  S.plans={1:[],2:[],3:[],4:[]};
+  S.cars={
+    1:{name:'Fahrzeug 1',slots:[]},2:{name:'Fahrzeug 2',slots:[]},
+    3:{name:'Fahrzeug 3',slots:[]},4:{name:'Fahrzeug 4',slots:[]}
+  };
+  initSlots();
+  document.getElementById('raceName').value='SPR Charity 2026';
+  document.getElementById('startTime').value='07:00';
+  document.getElementById('raceDur').value='24';
+  document.getElementById('stintLen').value='60';
+  document.getElementById('pitDur').value='3';
+  document.getElementById('sunrise').value='7';
+  document.getElementById('sunset').value='21';
+  updateTop();
+  initSetup();
+  renderPool();
+  renderVehGrid();
+  showToast('Zurueckgesetzt','ok');
+}
+
+// ===================== TOAST =====================
+function showToast(msg,type){
+  var t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast '+(type||'ok')+' show';
+  clearTimeout(t._timer);
+  t._timer=setTimeout(function(){t.classList.remove('show');},2200);
+}
+
+// ===================== INIT =====================
+(function init(){
+  initSlots();
+  var loaded=loadData();
+  if(loaded){initSlots();}
+  updateTop();
+  initSetup();
+  renderPool();
+  renderVehGrid();
+  if(S.plans&&S.plans[1]&&S.plans[1].length){
+    // plans exist, render plan tab if it was active
+  }
+})();
+</script>
+</body>
+</html>
+ENDOFFILE
+echo "done: $(wc -l < /home/claude/SPR_v3/index.html) lines"
