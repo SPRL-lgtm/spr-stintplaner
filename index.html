@@ -352,8 +352,24 @@ tbody tr:hover td{background:var(--s2)}
 <!-- RESET MODAL -->
 <div class="modal-bg" id="resetModal">
   <div class="modal">
-    <h3>Alle Daten zuruecksetzen?</h3>
-    <p>Alle eingegebenen Daten werden geloescht und auf Standardwerte zurueckgesetzt. Dieser Vorgang kann nicht rueckgaengig gemacht werden.</p>
+    <h3>Zuruecksetzen</h3>
+    <p>Was soll zurueckgesetzt werden?</p>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border-radius:6px;border:1px solid var(--border);background:var(--s2)">
+        <input type="radio" name="resetMode" value="all" checked style="width:auto;accent-color:var(--acc)">
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--text)">Alles zuruecksetzen</div>
+          <div style="font-size:10px;color:var(--muted)">Fahrerpool, Fahrzeuge, Verfuegbarkeit und Plan werden geloescht</div>
+        </div>
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border-radius:6px;border:1px solid var(--border);background:var(--s2)">
+        <input type="radio" name="resetMode" value="keep_pool" style="width:auto;accent-color:var(--acc)">
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--text)">Fahrerpool behalten</div>
+          <div style="font-size:10px;color:var(--muted)">Fahrernamen bleiben erhalten, alles andere wird zurueckgesetzt</div>
+        </div>
+      </label>
+    </div>
     <div class="modal-btns">
       <button class="btn btn-cancel" onclick="closeReset()">Abbrechen</button>
       <button class="btn btn-danger" onclick="doReset()">Zuruecksetzen</button>
@@ -1167,15 +1183,20 @@ function importJSON(e){
 function showReset(){document.getElementById('resetModal').classList.add('open');}
 function closeReset(){document.getElementById('resetModal').classList.remove('open');}
 function doReset(){
+  var mode=document.querySelector('input[name="resetMode"]:checked');
+  var keepPool=mode&&mode.value==='keep_pool';
   closeReset();
   localStorage.removeItem('spr_stintplaner');
-  S.pool=['','','','',''];
+  var savedPool=keepPool?S.pool.slice():['','','','',''];
   S.avail={};
   S.plans={1:[],2:[],3:[],4:[]};
   S.cars={
-    1:{name:'Fahrzeug 1',slots:[]},2:{name:'Fahrzeug 2',slots:[]},
-    3:{name:'Fahrzeug 3',slots:[]},4:{name:'Fahrzeug 4',slots:[]}
+    1:{name:'Fahrzeug 1',slots:[],startTime:'',raceDur:'',stintLen:'',active:true},
+    2:{name:'Fahrzeug 2',slots:[],startTime:'',raceDur:'',stintLen:'',active:true},
+    3:{name:'Fahrzeug 3',slots:[],startTime:'',raceDur:'',stintLen:'',active:true},
+    4:{name:'Fahrzeug 4',slots:[],startTime:'',raceDur:'',stintLen:'',active:true}
   };
+  S.pool=savedPool;
   initSlots();
   document.getElementById('raceName').value='SPR Charity 2026';
   document.getElementById('startTime').value='07:00';
@@ -1188,7 +1209,7 @@ function doReset(){
   initSetup();
   renderPool();
   renderVehGrid();
-  showToast('Zurueckgesetzt','ok');
+  showToast(keepPool?'Zurueckgesetzt (Fahrerpool behalten)':'Komplett zurueckgesetzt','ok');
 }
 
 // ===================== TOAST =====================
