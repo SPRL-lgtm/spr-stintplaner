@@ -189,6 +189,20 @@ tbody tr:hover td{background:var(--s2)}
 .toast.show{transform:translateY(0);opacity:1}
 .toast.ok{border-color:rgba(34,197,94,.5);color:var(--green)}
 .toast.err{border-color:rgba(239,68,68,.5);color:var(--red)}
+
+/* PASSWORD SCREEN */
+.pw-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:0}
+.pw-box{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:36px 40px;display:flex;flex-direction:column;align-items:center;gap:16px;min-width:320px}
+.pw-logo{font-size:36px;margin-bottom:4px}
+.pw-title{font-size:16px;font-weight:700;color:var(--acc);letter-spacing:.06em}
+.pw-sub{font-size:10px;color:var(--muted);letter-spacing:.1em;margin-top:-8px}
+.pw-input-wrap{width:100%;position:relative}
+.pw-input{width:100%;background:var(--s3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;padding:10px 14px;outline:none;font-family:inherit;text-align:center;letter-spacing:.1em;transition:border-color .15s}
+.pw-input:focus{border-color:var(--acc)}
+.pw-input.error{border-color:var(--red);animation:shake .3s}
+.pw-btn{width:100%;padding:10px;border-radius:6px;background:var(--acc);border:none;color:#0a0a0f;font-size:12px;font-weight:700;letter-spacing:.06em;cursor:pointer;font-family:inherit;transition:opacity .15s}
+.pw-btn:hover{opacity:.85}
+.pw-err{font-size:11px;color:var(--red);min-height:16px}
 </style>
 </head>
 <body>
@@ -320,6 +334,21 @@ tbody tr:hover td{background:var(--s2)}
 </div><!-- .main -->
 </div><!-- .app -->
 
+
+<!-- PASSWORD SCREEN -->
+<div class="pw-screen" id="pwScreen">
+  <div class="pw-box">
+    <div class="pw-logo">&#127022;</div>
+    <div class="pw-title">SPR STINTPLANER</div>
+    <div class="pw-sub">SNAIL PACE RACING</div>
+    <div class="pw-input-wrap">
+      <input class="pw-input" type="password" id="pwInput" placeholder="Passwort" onkeydown="if(event.key==='Enter')checkPw()">
+    </div>
+    <div class="pw-err" id="pwErr"></div>
+    <button class="pw-btn" onclick="checkPw()">EINLOGGEN</button>
+  </div>
+</div>
+
 <!-- RESET MODAL -->
 <div class="modal-bg" id="resetModal">
   <div class="modal">
@@ -336,20 +365,52 @@ tbody tr:hover td{background:var(--s2)}
 <div class="toast" id="toast"></div>
 
 <script>
+
+// ===================== PASSWORD =====================
+var PW_HASH = '9582b504fec0a9c1b2c9b1812be3b1aa08732622bced0cb1f45dd013571f50dc';
+var SESSION_KEY = 'spr_auth';
+
+async function hashStr(str) {
+  var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0')}).join('');
+}
+
+async function checkPw() {
+  var val = document.getElementById('pwInput').value;
+  var h = await hashStr(val);
+  if(h === PW_HASH) {
+    sessionStorage.setItem(SESSION_KEY, '1');
+    document.getElementById('pwScreen').style.display = 'none';
+  } else {
+    var inp = document.getElementById('pwInput');
+    inp.classList.add('error');
+    document.getElementById('pwErr').textContent = 'Falsches Passwort';
+    setTimeout(function(){inp.classList.remove('error');inp.value='';},600);
+  }
+}
+
+function checkAuth() {
+  if(sessionStorage.getItem(SESSION_KEY) !== '1') {
+    document.getElementById('pwScreen').style.display = 'flex';
+  } else {
+    document.getElementById('pwScreen').style.display = 'none';
+  }
+}
+
 // ===================== COLORS =====================
 var CAR_COLORS = ['','#3b82f6','#22c55e','#f97316','#a855f7'];
 var DRV_COLORS = ['#3b82f6','#22c55e','#f97316','#a855f7','#ec4899','#06b6d4','#84cc16','#f43f5e','#8b5cf6','#14b8a6','#fb923c','#a3e635'];
 
 // ===================== STATE =====================
 var S = {
-  pool: ['','','','',''],  // global driver pool names
+  pool: ['','','','',''],
   cars: {
-    1:{name:'Fahrzeug 1', slots:[]},
-    2:{name:'Fahrzeug 2', slots:[]},
-    3:{name:'Fahrzeug 3', slots:[]},
-    4:{name:'Fahrzeug 4', slots:[]}
+    1:{name:'Fahrzeug 1',slots:[],startTime:'',raceDur:'',stintLen:'',active:true},
+    2:{name:'Fahrzeug 2',slots:[],startTime:'',raceDur:'',stintLen:'',active:true},
+    3:{name:'Fahrzeug 3',slots:[],startTime:'',raceDur:'',stintLen:'',active:true},
+    4:{name:'Fahrzeug 4',slots:[],startTime:'',raceDur:'',stintLen:'',active:true}
   },
-  avail: {},   // avail[carNum][poolIdx] = [{type,from,to}]
+  avail: {},
   plans: {1:[],2:[],3:[],4:[]}
 };
 
@@ -375,15 +436,28 @@ var activePlanCar = 1;
 // ===================== HELPERS =====================
 function padN(n){return String(Math.floor(n)).padStart(2,'0')}
 function fmtT(m){m=Math.round(m);return padN(Math.floor(m/60)%24)+':'+padN(m%60)}
-function getRaceMins(){return Math.round(parseFloat(document.getElementById('raceDur').value||24)*60)}
-function getStartMins(){var p=(document.getElementById('startTime').value||'07:00').split(':');return parseInt(p[0])*60+parseInt(p[1])}
-function timeToPct(t){
-  var rm=getRaceMins(),sm=getStartMins(),p=t.split(':');
+function getRaceMins(c){
+  var v=c?S.cars[c].raceDur:'';
+  if(!v||v==='')v=document.getElementById('raceDur').value||24;
+  return Math.round(parseFloat(v)*60);
+}
+function getStartMins(c){
+  var v=c?S.cars[c].startTime:'';
+  if(!v||v==='')v=document.getElementById('startTime').value||'07:00';
+  var p=v.split(':');return parseInt(p[0])*60+parseInt(p[1]);
+}
+function getStintLen(c){
+  var v=c?S.cars[c].stintLen:'';
+  if(!v||v==='')v=document.getElementById('stintLen').value||60;
+  return parseInt(v);
+}
+function timeToPct(t,c){
+  var rm=getRaceMins(c),sm=getStartMins(c),p=t.split(':');
   var m=parseInt(p[0])*60+parseInt(p[1]);
   if(m<sm)m+=24*60;
   return Math.max(0,Math.min(100,(m-sm)/rm*100));
 }
-function pctToMins(pct){return getStartMins()+getRaceMins()*pct/100}
+function pctToMins(pct,c){return getStartMins(c)+getRaceMins(c)*pct/100}
 function getCarColor(n){return CAR_COLORS[n]||'#888'}
 function getDriverName(poolIdx){
   if(poolIdx<0||poolIdx>=S.pool.length)return '';
@@ -799,17 +873,24 @@ function renderGantt(carNum,plan){
   var rm=getRaceMins(),sm=getStartMins();
   var wrap=document.getElementById('ganttWrap');
 
-  // Build axis with fine ticks every hour (or every 2h for long races)
-  var hourMs=60, totalH=rm/60;
-  var tickStep = totalH<=24?1:2;
-  var tickCount=Math.floor(rm/60/tickStep);
-
-  var axisHtml='<div class="g-hdr"><div class="g-spacer"></div><div class="g-ticks" style="flex:1;position:relative;height:18px">';
-  for(var i=0;i<=tickCount;i++){
-    var pct=(i*tickStep*60/rm*100).toFixed(3);
-    var timeStr=fmtT(sm+i*tickStep*60);
-    axisHtml+='<div class="g-tick-line" style="left:'+pct+'%"></div>';
-    axisHtml+='<div class="g-tick" style="left:'+pct+'%">'+timeStr+'</div>';
+  // Multi-level axis: 5min / 15min / 1h ticks
+  var axisHtml='<div class="g-hdr"><div class="g-spacer"></div><div class="g-ticks" style="flex:1;position:relative;height:28px">';
+  var totalMins=rm;
+  for(var m=0;m<=totalMins;m+=5){
+    var pct=(m/totalMins*100).toFixed(4);
+    var isHour=(m%60===0);
+    var is15=(m%15===0&&!isHour);
+    var is5=(!isHour&&!is15);
+    var lineH=isHour?'100%':is15?'55%':'30%';
+    var lineCol=isHour?'rgba(255,255,255,.25)':is15?'rgba(255,255,255,.12)':'rgba(255,255,255,.06)';
+    axisHtml+='<div style="position:absolute;left:'+pct+'%;top:0;width:1px;height:'+lineH+';background:'+lineCol+'"></div>';
+    if(isHour){
+      var timeStr=fmtT(sm+m);
+      axisHtml+='<div style="position:absolute;left:'+pct+'%;bottom:0;transform:translateX(-50%);font-size:10px;color:var(--m2);font-weight:600;white-space:nowrap">'+timeStr+'</div>';
+    } else if(is15){
+      var timeStr=fmtT(sm+m);
+      axisHtml+='<div style="position:absolute;left:'+pct+'%;bottom:0;transform:translateX(-50%);font-size:8px;color:var(--muted);white-space:nowrap">'+timeStr+'</div>';
+    }
   }
   axisHtml+='</div></div>';
 
@@ -1131,6 +1212,7 @@ function showToast(msg,type){
   if(S.plans&&S.plans[1]&&S.plans[1].length){
     // plans exist, render plan tab if it was active
   }
+  checkAuth();
 })();
 </script>
 </body>
