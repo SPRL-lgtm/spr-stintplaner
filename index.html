@@ -393,16 +393,28 @@ async function hashStr(str) {
 }
 
 async function checkPw() {
-  var val = document.getElementById('pwInput').value;
-  var h = await hashStr(val);
-  if(h === PW_HASH) {
-    sessionStorage.setItem(SESSION_KEY, '1');
-    document.getElementById('pwScreen').style.display = 'none';
-  } else {
-    var inp = document.getElementById('pwInput');
-    inp.classList.add('error');
-    document.getElementById('pwErr').textContent = 'Falsches Passwort';
-    setTimeout(function(){inp.classList.remove('error');inp.value='';},600);
+  var val = document.getElementById('pwInput').value.trim();
+  if(!val){return;}
+  try {
+    var h = await hashStr(val);
+    if(h === PW_HASH) {
+      sessionStorage.setItem(SESSION_KEY, '1');
+      document.getElementById('pwScreen').style.display = 'none';
+    } else {
+      var inp = document.getElementById('pwInput');
+      inp.classList.add('error');
+      document.getElementById('pwErr').textContent = 'Falsches Passwort';
+      setTimeout(function(){inp.classList.remove('error');inp.value='';inp.focus();},600);
+    }
+  } catch(e) {
+    // Fallback: simple compare (for non-HTTPS environments)
+    var simple = btoa(unescape(encodeURIComponent(val)));
+    if(val === 'Pace') {
+      sessionStorage.setItem(SESSION_KEY, '1');
+      document.getElementById('pwScreen').style.display = 'none';
+    } else {
+      document.getElementById('pwErr').textContent = 'Falsches Passwort';
+    }
   }
 }
 
