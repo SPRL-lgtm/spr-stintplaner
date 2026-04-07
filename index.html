@@ -1048,7 +1048,10 @@ function buildPlan(carNum){
   var plan=[],elapsed=0,stintNum=0,lastPI=-1;
 
   while(elapsed<rm){
-    var remaining=rm-elapsed,dur=Math.min(stintM,remaining);
+    var remaining=rm-elapsed;
+    // Always use full stint length - only the very last stint can be shorter
+    // If remaining > 0 but < stintM, this IS the last stint
+    var dur=(remaining<=stintM)?remaining:stintM;
     var midH=Math.floor((sm+elapsed+dur/2)/60)%24;
     var isNight=midH<sunriseH||midH>=sunsetH;
 
@@ -1698,9 +1701,8 @@ function deleteStint(carNum, idx){
     var slotIdx=stintNum%slots.length;
     while(elap<rm){
       var remaining=Math.round(rm-elap);
-      // Always use full stint length - only last stint can be shorter
-      var dur=stintM;
-      if(remaining<=stintM) dur=remaining; // final stint fills exactly to race end
+      // Always full stint, only last can be shorter
+      var dur=(remaining<=stintM)?remaining:stintM;
       // Add pit before new stint (if not first)
       if(plan.length>0&&!plan[plan.length-1].pit){
         var ps=fmtT(sm+elap);
