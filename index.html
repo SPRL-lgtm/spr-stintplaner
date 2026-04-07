@@ -74,7 +74,7 @@ select option{background:var(--s2)}
 .pool-del{padding:2px 5px;border-radius:3px;border:1px solid rgba(239,68,68,.3);color:var(--red);font-size:9px;background:transparent;cursor:pointer;flex-shrink:0}
 
 /* VEH CARDS */
-.veh-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.veh-grid{gap:14px}
 .vcard{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:13px}
 .vcard-hdr{display:flex;align-items:center;gap:7px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)}
 .vdot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
@@ -204,7 +204,6 @@ tbody tr:hover td{background:var(--s2)}
   <div class="tdiv"></div>
   <div class="rinfo">
     <span class="rname" id="topName">SPR Charity 2026</span>
-    <span class="pill" id="topStart">Start: 07:00</span>
   </div>
   <div class="topbtns">
     <button class="tbtn save" onclick="saveData()">&#128190; Speichern</button>
@@ -230,8 +229,8 @@ tbody tr:hover td{background:var(--s2)}
     <div class="card">
       <div class="ct">Rennen</div>
       <div class="f"><label>Rennname</label><input type="text" id="raceName" value="SPR Charity 2026" oninput="updateTop();autoSave()"></div>
-      <div class="f"><label>Startzeit (global)</label><input type="time" id="startTime" value="07:00" oninput="updateTop();autoSave()"></div>
-      <div style="font-size:10px;color:var(--muted2);margin-top:4px">Dauer, Stint und Box werden pro Fahrzeug eingestellt.</div>
+      <div style="font-size:10px;color:var(--muted2);margin-top:4px">Startzeit, Dauer, Stint und Box werden pro Fahrzeug eingestellt.</div>
+      <input type="hidden" id="startTime" value="07:00">
       <input type="hidden" id="raceDur" value="24">
       <input type="hidden" id="stintLen" value="60">
       <input type="hidden" id="pitDur" value="3">
@@ -247,7 +246,7 @@ tbody tr:hover td{background:var(--s2)}
   </div>
   <div class="card">
     <div class="ct">Fahrzeuge (individuelle Einstellungen)</div>
-    <div style="font-size:10px;color:var(--m2);margin-bottom:14px">Leer lassen = globale Einstellung wird verwendet</div>
+    <div style="font-size:10px;color:var(--m2);margin-bottom:14px">Startzeit ist Pflicht. Stint/Box/Dauer leer = Standard wird verwendet.</div>
     <div id="carNameInputs"></div>
   </div>
   <div class="btn-row">
@@ -397,8 +396,8 @@ function getRaceMins(c){
   return Math.round(parseFloat(v)*60);
 }
 function getStartMins(c){
-  var v=c?S.cars[c].startTime:'';
-  if(!v||v===''){v=document.getElementById('startTime').value||'07:00';}
+  var v=(c&&S.cars[c])?S.cars[c].startTime:'';
+  if(!v||v==='')v='07:00'; // default fallback
   var p=v.split(':');return parseInt(p[0])*60+parseInt(p[1]);
 }
 function getStintLen(c){
@@ -448,7 +447,6 @@ function getDotHtml(color,size){size=size||7;return '<span style="display:inline
 // ===================== TOPBAR =====================
 function updateTop(){
   document.getElementById('topName').textContent=document.getElementById('raceName').value||'SPR Rennen';
-  document.getElementById('topStart').textContent='Start: '+(document.getElementById('startTime').value||'07:00');
 }
 
 // ===================== TABS =====================
@@ -561,7 +559,7 @@ function initSetup(){
 
       // Fields grid
       var fields=[
-        {label:'Startzeit',id:'cstart'+cn,type:'time',val:car.startTime||'',ph:'',key:'startTime'},
+        {label:'Startzeit (Pflicht)',id:'cstart'+cn,type:'time',val:car.startTime||'',ph:'',key:'startTime'},
         {label:'Dauer (h)',id:'cdur'+cn,type:'number',val:car.raceDur||'',ph:'Global',key:'raceDur',min:0.5,max:72,step:0.5},
         {label:'Stint (Min)',id:'cstint'+cn,type:'number',val:car.stintLen||'',ph:'Global',key:'stintLen',min:5,max:300},
         {label:'Box (Min)',id:'cpit'+cn,type:'number',val:car.pitDur||'',ph:'Global',key:'pitDur',min:1,max:60},
@@ -686,10 +684,15 @@ function buildPoolOptions(selected){
 function renderVehGrid(){
   var wrap=document.getElementById('vehGrid');
   wrap.innerHTML='';
+  // Count active cars for grid sizing
+  var activeCnt=0;
+  for(var c=1;c<=4;c++){if(S.cars[c].active!==false)activeCnt++;}
+  var minW=activeCnt<=2?'340px':activeCnt===3?'280px':'230px';
   var grid=document.createElement('div');
-  grid.className='veh-grid';
+  grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax('+minW+',1fr));gap:14px';
   for(var c=1;c<=4;c++){
     (function(cn){
+      if(S.cars[cn].active===false)return; // skip inactive
       var col=CAR_COLORS[cn];
       var card=document.createElement('div');
       card.className='vcard';
