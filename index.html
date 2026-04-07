@@ -184,6 +184,18 @@ tbody tr:hover td{background:var(--s2)}
 .modal .btn-cancel{background:transparent;color:var(--m2)}
 .modal .btn-danger{background:var(--red);border-color:var(--red);color:#fff}
 
+/* PASSWORD */
+.pw-bg{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center}
+.pw-box{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:40px;display:flex;flex-direction:column;align-items:center;gap:14px;min-width:300px;max-width:360px;width:90%}
+.pw-logo{font-size:40px}
+.pw-title{font-size:15px;font-weight:700;color:var(--acc);letter-spacing:.06em}
+.pw-sub{font-size:10px;color:var(--muted);letter-spacing:.1em;margin-top:-6px}
+.pw-inp{width:100%;background:var(--s3);border:2px solid var(--border);border-radius:6px;color:var(--text);font-size:16px;padding:10px 14px;outline:none;font-family:inherit;text-align:center;letter-spacing:.15em;transition:border-color .15s}
+.pw-inp:focus{border-color:var(--acc)}
+.pw-inp.err{border-color:var(--red)}
+.pw-btn{width:100%;padding:10px;border-radius:6px;background:var(--acc);border:none;color:#0a0a0f;font-size:12px;font-weight:700;letter-spacing:.06em;cursor:pointer;font-family:inherit}
+.pw-btn:hover{opacity:.85}
+.pw-err{font-size:11px;color:var(--red);min-height:16px;font-weight:600}
 /* TOAST */
 .toast{position:fixed;bottom:20px;right:20px;background:var(--s1);border:1px solid var(--border);border-radius:7px;padding:10px 16px;font-size:11px;font-weight:600;z-index:2000;transform:translateY(60px);opacity:0;transition:all .25s;pointer-events:none}
 .toast.show{transform:translateY(0);opacity:1}
@@ -193,6 +205,18 @@ tbody tr:hover td{background:var(--s2)}
 </style>
 </head>
 <body>
+<!-- PASSWORD SCREEN -->
+<div class="pw-bg" id="pwScreen">
+  <div class="pw-box">
+    <div class="pw-logo">&#127022;</div>
+    <div class="pw-title">SPR STINTPLANER</div>
+    <div class="pw-sub">SNAIL PACE RACING</div>
+    <input class="pw-inp" type="password" id="pwInp" placeholder="Passwort" onkeydown="if(event.key==='Enter')checkPw()">
+    <div class="pw-err" id="pwErr"></div>
+    <button class="pw-btn" onclick="checkPw()">ANMELDEN</button>
+  </div>
+</div>
+
 <div class="app">
 
 <!-- TOPBAR -->
@@ -322,6 +346,10 @@ tbody tr:hover td{background:var(--s2)}
       <canvas id="drvDonut" width="80" height="80" style="flex-shrink:0"></canvas>
       <div id="drvDonutLegend" style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;flex:1"></div>
     </div>
+    <!-- recalc button -->
+    <div style="padding-left:20px;flex-shrink:0">
+      <button onclick="buildAndShow()" style="padding:8px 16px;border-radius:6px;background:var(--acc);border:none;color:#0a0a0f;font-size:11px;font-weight:700;letter-spacing:.05em;cursor:pointer;font-family:inherit;white-space:nowrap">Neu berechnen</button>
+    </div>
   </div>
   <div class="card">
     <div class="ct">Race Timeline <span style="font-size:9px;color:var(--m2);font-weight:400;text-transform:none;letter-spacing:0">&nbsp;Stints per Drag &amp; Drop verschieben</span></div>
@@ -372,6 +400,42 @@ tbody tr:hover td{background:var(--s2)}
 <div class="toast" id="toast"></div>
 
 <script>
+
+// ===================== PASSWORD =====================
+var PW_HASH='9582b504fec0a9c1b2c9b1812be3b1aa08732622bced0cb1f45dd013571f50dc';
+async function sha256(str){
+  var buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0')}).join('');
+}
+async function checkPw(){
+  var val=document.getElementById('pwInp').value.trim();
+  if(!val)return;
+  try{
+    var h=await sha256(val);
+    if(h===PW_HASH){
+      sessionStorage.setItem('spr_ok','1');
+      document.getElementById('pwScreen').style.display='none';
+    } else {
+      var inp=document.getElementById('pwInp');
+      inp.classList.add('err');
+      document.getElementById('pwErr').textContent='Falsches Passwort';
+      setTimeout(function(){inp.classList.remove('err');inp.value='';inp.focus();},700);
+    }
+  }catch(e){
+    // Fallback for non-HTTPS
+    if(val==='Pace'){
+      sessionStorage.setItem('spr_ok','1');
+      document.getElementById('pwScreen').style.display='none';
+    } else {
+      document.getElementById('pwErr').textContent='Falsches Passwort';
+    }
+  }
+}
+function checkAuth(){
+  if(sessionStorage.getItem('spr_ok')==='1'){
+    document.getElementById('pwScreen').style.display='none';
+  }
+}
 
 // ===================== COLORS =====================
 var CAR_COLORS = ['','#3b82f6','#22c55e','#f97316','#a855f7'];
@@ -1803,6 +1867,7 @@ function showToast(msg,type){
   initSetup();
   renderPool();
   renderVehGrid();
+  checkAuth();
 })();
 </script>
 </body>
