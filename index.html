@@ -1011,7 +1011,7 @@ function buildPlan(carNum){
       elapsedStart:elapsed,elapsedEnd:elapsed+dur,
       laps:laps,fuelUsed:fuelUsed,fuelInTank:fuelInTank,
       pitWindowLap:pitWindowLap,pitWindowTime:pitWindowTime,
-      lapTime:bestSlot.lapTime||''});
+      lapTime:bestSlot.lapTime||'',actualEnd:''});
 
     lastPI=pi;elapsed+=dur;
 
@@ -1253,6 +1253,74 @@ function endDrag(e){
   autoSave();
 }
 
+// ===================== ACTUAL END TIME =====================
+function setActualEnd(carNum, idx, timeStr){
+  var plan=S.plans[carNum];
+  if(!plan||!plan[idx])return;
+  var p=plan[idx];
+  if(!timeStr){
+    p.actualEnd='';
+    // Recompute from original duration
+    recalcFromIdx(carNum, idx);
+    renderPlanView();
+    autoSave();
+    return;
+  }
+  p.actualEnd=timeStr;
+  recalcFromIdx(carNum, idx);
+  renderPlanView();
+  autoSave();
+}
+
+function recalcFromIdx(carNum, idx){
+  var plan=S.plans[carNum];
+  var sm=getStartMins(carNum);
+  var pitM=getPitDur(carNum);
+
+  // Find the stint at idx and adjust its end based on actualEnd
+  var p=plan[idx];
+  if(!p||p.pit)return;
+
+  if(p.actualEnd){
+    // Parse actual end time to elapsed minutes
+    var aep=p.actualEnd.split(':');
+    var aeAbsMins=parseInt(aep[0])*60+parseInt(aep[1]);
+    // Handle midnight wrap
+    var stintStartAbsMins=sm+p.elapsedStart;
+    if(aeAbsMins<stintStartAbsMins%1440) aeAbsMins+=24*60;
+    var newDur=aeAbsMins-(stintStartAbsMins%1440);
+    if(newDur<0)newDur+=24*60;
+    // clamp reasonable
+    if(newDur<1)newDur=1;
+    if(newDur>480)newDur=480;
+    p.duration=newDur;
+    p.elapsedEnd=p.elapsedStart+newDur;
+    p.absEnd=fmtT(sm+p.elapsedEnd);
+  }
+
+  // Now cascade: update all subsequent entries
+  var elapsed=p.elapsedEnd;
+  for(var i=idx+1;i<plan.length;i++){
+    var entry=plan[i];
+    entry.elapsedStart=elapsed;
+    entry.absStart=fmtT(sm+elapsed);
+    if(entry.pit){
+      elapsed+=entry.duration;
+      entry.elapsedEnd=elapsed;
+      entry.absEnd=fmtT(sm+elapsed);
+    } else {
+      entry.elapsedEnd=elapsed+entry.duration;
+      entry.absEnd=fmtT(sm+entry.elapsedEnd);
+      elapsed=entry.elapsedEnd;
+      // Also recompute night status
+      var midH=Math.floor((sm+elapsed-entry.duration/2)/60)%24;
+      var sunriseH=parseInt(document.getElementById('sunrise').value||7);
+      var sunsetH=parseInt(document.getElementById('sunset').value||21);
+      entry.isNight=midH<sunriseH||midH>=sunsetH;
+    }
+  }
+}
+
 // ===================== STINT CARDS =====================
 function renderTable(carNum,plan){
   var html='';
@@ -1288,13 +1356,20 @@ function renderTable(carNum,plan){
         +'<div style="width:3px;background:'+p.color+';border-radius:2px;flex-shrink:0;margin-right:10px"></div>'
         +'<div style="flex:1;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:10px 14px">'
 
-        // Header line: # + driver + time + night badge
+        // Header line: # + driver + time + night badge + actual end input
         +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;flex-wrap:wrap">'
         +'<span style="font-size:11px;font-weight:700;color:var(--muted);width:24px">#'+p.stintNum+'</span>'
         +getDotHtml(p.color,8)
         +'<span style="font-size:13px;font-weight:600;color:var(--text)">'+p.driver+'</span>'
         +'<span style="font-size:11px;color:var(--m2);margin-left:4px">'+p.absStart+' &ndash; '+p.absEnd+'</span>'
-        +'<span style="margin-left:auto">'+nightBadge+'</span>'
+        +'<span style="margin-left:auto;display:flex;align-items:center;gap:6px">'
+        +nightBadge
+        +'<span style="font-size:9px;color:var(--muted)">Ist-Ende:</span>'
+        +'<input type="time" value="'+p.actualEnd+'" data-idx="'+idx+'" data-car="'+carNum+'" '
+        +'style="width:80px;padding:2px 5px;font-size:10px;margin:0;background:var(--s3);border:1px solid '+(p.actualEnd?'var(--acc)':'var(--border)')+';border-radius:4px;color:'+(p.actualEnd?'var(--acc)':'var(--muted)')+'" '
+        +'onchange="setActualEnd('+carNum+','+idx+',this.value)" '
+        +'title="Tatsaechliche Endzeit eingeben - alles danach wird neu berechnet">'
+        +'</span>'
         +'</div>'
 
         // Data row
@@ -1304,7 +1379,8 @@ function renderTable(carNum,plan){
         +(tankSize>0&&p.fuelUsed>0?'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Im Tank</span><span style="font-size:12px;font-weight:600;color:'+(p.fuelUsed>tankSize*0.8?'var(--red)':'var(--text)')+'">'+Math.max(0,Math.round((tankSize-p.fuelUsed)*10)/10)+' L</span></div>':'')
         +(p.pitWindowTime?'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Pit-Fenster</span><span style="font-size:12px;font-weight:600;color:var(--acc)">'+p.pitWindowTime+' (~Rd '+p.pitWindowLap+')</span></div>':'')
         +(p.lapTime?'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Rd-Zeit</span><span style="font-size:12px;font-weight:600;color:var(--text)">'+p.lapTime+'</span></div>':'')
-        +'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Stintzeit</span><span style="font-size:12px;font-weight:600;color:var(--text)">'+p.duration+' Min</span></div>'
+        +'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Stintzeit</span><span style="font-size:12px;font-weight:600;color:'+(p.actualEnd?'var(--acc)':'var(--text)')+'">'+p.duration+' Min'+(p.actualEnd?' *':'')+'</span></div>'
+        +(p.actualEnd?'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--acc);text-transform:uppercase;letter-spacing:.06em">Korrigiert</span><span style="font-size:10px;font-weight:600;color:var(--acc)">Ist-Ende: '+p.actualEnd+'</span></div>':'')
         +'</div>'
         +'</div></div>';
     }
