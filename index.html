@@ -311,7 +311,7 @@ tbody tr:hover td{background:var(--s2)}
   </div>
   <div class="card">
     <div class="ct">Stintplan</div>
-    <div class="stint-scroll"><table><thead><tr><th>#</th><th>Fahrer</th><th>Start</th><th>Ende</th><th>Dauer</th><th>Bedingung</th></tr></thead><tbody id="stintBody"></tbody></table></div>
+    <div id="stintCards"></div>
   </div>
   <div class="card">
     <div class="ct">Fahrer-Verteilung</div>
@@ -365,10 +365,10 @@ var DRV_COLORS = ['#3b82f6','#22c55e','#f97316','#a855f7','#ec4899','#06b6d4','#
 var S = {
   pool: ['','','','',''],
   cars: {
-    1:{name:'Fahrzeug 1',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',active:true},
-    2:{name:'Fahrzeug 2',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',active:true},
-    3:{name:'Fahrzeug 3',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',active:true},
-    4:{name:'Fahrzeug 4',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',active:true}
+    1:{name:'Fahrzeug 1',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',tankSize:'',active:true},
+    2:{name:'Fahrzeug 2',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',tankSize:'',active:true},
+    3:{name:'Fahrzeug 3',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',tankSize:'',active:true},
+    4:{name:'Fahrzeug 4',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',tankSize:'',active:true}
   },
   avail: {},
   plans: {1:[],2:[],3:[],4:[]}
@@ -379,7 +379,7 @@ function initSlots() {
   for (var c = 1; c <= 4; c++) {
     if (!S.cars[c].slots || S.cars[c].slots.length === 0) {
       S.cars[c].slots = [];
-      for (var i = 0; i < 5; i++) S.cars[c].slots.push({poolIdx:-1, prefStart:false, prefNight:false});
+      for (var i = 0; i < 5; i++) S.cars[c].slots.push({poolIdx:-1, prefStart:false, prefNight:false, lapTime:'', fuelPerLap:''});
     }
   }
 }
@@ -415,6 +415,26 @@ function getPitDur(c){
   var v=c?S.cars[c].pitDur:'';
   if(!v||v==='')v=document.getElementById('pitDur').value||3;
   return parseInt(v);
+}
+function parseLapTime(str){
+  // "M:SS" or "MM:SS" -> seconds
+  if(!str||!str.trim())return 0;
+  var p=str.trim().split(':');
+  if(p.length===2)return parseInt(p[0])*60+parseFloat(p[1]);
+  return parseFloat(p[0])*60;
+}
+function calcStintLaps(slot){
+  var lt=parseLapTime(slot.lapTime);
+  if(!lt)return 0;
+  return lt; // returns lap duration in seconds
+}
+function calcFuelPerStint(slot, laps){
+  var fl=parseFloat(slot.fuelPerLap)||0;
+  return Math.round(fl*laps*10)/10;
+}
+function getTankSize(c){
+  var v=S.cars[c].tankSize;
+  return parseFloat(v)||0;
 }
 function timeToPct(t,c){
   var rm=getRaceMins(c),sm=getStartMins(c),p=t.split(':');
@@ -463,6 +483,8 @@ function syncAll(){
     if(cst)S.cars[c].stintLen=cst.value;
     var cp=document.getElementById('cpit'+c);
     if(cp)S.cars[c].pitDur=cp.value;
+    var ct=document.getElementById('ctank'+c);
+    if(ct)S.cars[c].tankSize=ct.value;
     var ca=document.getElementById('cactive'+c);
     if(ca)S.cars[c].active=(ca.value=='1');
   }
@@ -474,6 +496,10 @@ function syncAll(){
     S.cars[c].slots.forEach(function(slot,si){
       var sel=document.getElementById('vslot_'+c+'_'+si);
       if(sel)slot.poolIdx=parseInt(sel.value);
+      var lt=document.getElementById('vlt_'+c+'_'+si);
+      if(lt)slot.lapTime=lt.value;
+      var fl=document.getElementById('vfl_'+c+'_'+si);
+      if(fl)slot.fuelPerLap=parseFloat(fl.value)||0;
     });
   }
 }
@@ -526,7 +552,8 @@ function initSetup(){
         {label:'Startzeit',id:'cstart'+cn,type:'time',val:car.startTime||'',ph:'',key:'startTime'},
         {label:'Dauer (h)',id:'cdur'+cn,type:'number',val:car.raceDur||'',ph:'Global',key:'raceDur',min:0.5,max:72,step:0.5},
         {label:'Stint (Min)',id:'cstint'+cn,type:'number',val:car.stintLen||'',ph:'Global',key:'stintLen',min:5,max:300},
-        {label:'Box (Min)',id:'cpit'+cn,type:'number',val:car.pitDur||'',ph:'Global',key:'pitDur',min:1,max:60}
+        {label:'Box (Min)',id:'cpit'+cn,type:'number',val:car.pitDur||'',ph:'Global',key:'pitDur',min:1,max:60},
+        {label:'Tank (Liter)',id:'ctank'+cn,type:'number',val:car.tankSize||'',ph:'z.B. 110',key:'tankSize',min:1,max:999,step:0.5}
       ];
 
       var fg=document.createElement('div');
@@ -646,30 +673,125 @@ function buildPoolOptions(selected){
 // ===================== VEH GRID =====================
 function renderVehGrid(){
   var wrap=document.getElementById('vehGrid');
-  var html='';
+  wrap.innerHTML='';
+  var grid=document.createElement('div');
+  grid.className='veh-grid';
   for(var c=1;c<=4;c++){
-    var col=CAR_COLORS[c];
-    html+='<div class="vcard">'
-      +'<div class="vcard-hdr">'
-      +'<div class="vdot" style="background:'+col+'"></div>'
-      +'<input type="text" id="cname'+c+'" value="'+S.cars[c].name+'" oninput="S.cars['+c+'].name=this.value;updateVehTabs();autoSave()">'
-      +'</div>';
-    S.cars[c].slots.forEach(function(slot,si){
-      html+='<div class="vslot">'
-        +'<span class="vsnum">'+(si+1)+'</span>'
-        +'<select id="vslot_'+c+'_'+si+'" onchange="S.cars['+c+'].slots['+si+'].poolIdx=parseInt(this.value);autoSave()">'
-        +buildPoolOptions(slot.poolIdx)
-        +'</select>'
-        +'<button class="pbtn'+(slot.prefStart?' p-start':'')+'" onclick="toggleSlotPref('+c+','+si+',\'prefStart\',this)">S</button>'
-        +'<button class="pbtn'+(slot.prefNight?' p-night':'')+'" onclick="toggleSlotPref('+c+','+si+',\'prefNight\',this)">N</button>'
-        +'<button class="rm-vslot" onclick="removeVSlot('+c+','+si+')">x</button>'
-        +'</div>';
-    });
-    html+='<button class="add-vslot" onclick="addVSlot('+c+')">+ Fahrer-Slot hinzufuegen</button>'
-      +'</div>';
+    (function(cn){
+      var col=CAR_COLORS[cn];
+      var card=document.createElement('div');
+      card.className='vcard';
+
+      // Car header
+      var hdr=document.createElement('div');
+      hdr.className='vcard-hdr';
+      var dot=document.createElement('div');
+      dot.className='vdot';
+      dot.style.background=col;
+      var nameInp=document.createElement('input');
+      nameInp.type='text';
+      nameInp.id='cname'+cn;
+      nameInp.value=S.cars[cn].name;
+      nameInp.addEventListener('input',function(){S.cars[cn].name=this.value;updateVehTabs();autoSave();});
+      hdr.appendChild(dot);
+      hdr.appendChild(nameInp);
+      card.appendChild(hdr);
+
+      // Slots
+      S.cars[cn].slots.forEach(function(slot,si){
+        var slotDiv=document.createElement('div');
+        slotDiv.style.cssText='margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)';
+
+        // Row 1: number + dropdown + pref btns + remove
+        var row1=document.createElement('div');
+        row1.className='vslot';
+        row1.style.marginBottom='5px';
+
+        var num=document.createElement('span');
+        num.className='vsnum';
+        num.textContent=si+1;
+
+        var sel=document.createElement('select');
+        sel.id='vslot_'+cn+'_'+si;
+        sel.style.cssText='margin:0;flex:1';
+        sel.innerHTML=buildPoolOptions(slot.poolIdx);
+        (function(s){sel.addEventListener('change',function(){S.cars[cn].slots[s].poolIdx=parseInt(this.value);autoSave();});})(si);
+
+        var btnS=document.createElement('button');
+        btnS.className='pbtn'+(slot.prefStart?' p-start':'');
+        btnS.textContent='S';
+        btnS.title='Startstint bevorzugt';
+        (function(s,b){b.addEventListener('click',function(){S.cars[cn].slots[s].prefStart=!S.cars[cn].slots[s].prefStart;b.classList.toggle('p-start',S.cars[cn].slots[s].prefStart);autoSave();});})(si,btnS);
+
+        var btnN=document.createElement('button');
+        btnN.className='pbtn'+(slot.prefNight?' p-night':'');
+        btnN.textContent='N';
+        btnN.title='Nachtstints bevorzugt';
+        (function(s,b){b.addEventListener('click',function(){S.cars[cn].slots[s].prefNight=!S.cars[cn].slots[s].prefNight;b.classList.toggle('p-night',S.cars[cn].slots[s].prefNight);autoSave();});})(si,btnN);
+
+        var btnRm=document.createElement('button');
+        btnRm.className='rm-vslot';
+        btnRm.textContent='x';
+        (function(s){btnRm.addEventListener('click',function(){removeVSlot(cn,s);});})(si);
+
+        row1.appendChild(num);
+        row1.appendChild(sel);
+        row1.appendChild(btnS);
+        row1.appendChild(btnN);
+        row1.appendChild(btnRm);
+        slotDiv.appendChild(row1);
+
+        // Row 2: lapTime + fuelPerLap
+        var row2=document.createElement('div');
+        row2.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-left:18px';
+
+        var ltWrap=document.createElement('div');
+        var ltLbl=document.createElement('label');
+        ltLbl.textContent='Rundenzeit (M:SS)';
+        ltLbl.style.cssText='font-size:9px;color:var(--muted)';
+        var ltInp=document.createElement('input');
+        ltInp.type='text';
+        ltInp.id='vlt_'+cn+'_'+si;
+        ltInp.value=slot.lapTime||'';
+        ltInp.placeholder='z.B. 8:30';
+        ltInp.style.cssText='margin:0;font-size:10px;padding:3px 6px';
+        (function(s){ltInp.addEventListener('input',function(){S.cars[cn].slots[s].lapTime=this.value;autoSave();});})(si);
+        ltWrap.appendChild(ltLbl);
+        ltWrap.appendChild(ltInp);
+
+        var flWrap=document.createElement('div');
+        var flLbl=document.createElement('label');
+        flLbl.textContent='Verbrauch (L/Rd)';
+        flLbl.style.cssText='font-size:9px;color:var(--muted)';
+        var flInp=document.createElement('input');
+        flInp.type='number';
+        flInp.id='vfl_'+cn+'_'+si;
+        flInp.value=slot.fuelPerLap||'';
+        flInp.placeholder='z.B. 2.8';
+        flInp.min='0';
+        flInp.step='0.1';
+        flInp.style.cssText='margin:0;font-size:10px;padding:3px 6px';
+        (function(s){flInp.addEventListener('input',function(){S.cars[cn].slots[s].fuelPerLap=parseFloat(this.value)||0;autoSave();});})(si);
+        flWrap.appendChild(flLbl);
+        flWrap.appendChild(flInp);
+
+        row2.appendChild(ltWrap);
+        row2.appendChild(flWrap);
+        slotDiv.appendChild(row2);
+        card.appendChild(slotDiv);
+      });
+
+      var addBtn=document.createElement('button');
+      addBtn.className='add-vslot';
+      addBtn.textContent='+ Fahrer-Slot hinzufuegen';
+      (function(cn_){addBtn.addEventListener('click',function(){addVSlot(cn_);});})(cn);
+      card.appendChild(addBtn);
+      grid.appendChild(card);
+    })(c);
   }
-  wrap.innerHTML=html;
+  wrap.appendChild(grid);
 }
+
 
 function toggleSlotPref(c,si,key,btn){
   S.cars[c].slots[si][key]=!S.cars[c].slots[si][key];
@@ -848,16 +970,36 @@ function buildPlan(carNum){
     var col=DRV_COLORS[pi%DRV_COLORS.length];
     var absStart=fmtT(sm+elapsed),absEnd=fmtT(sm+elapsed+dur);
 
+    // Calculate laps and fuel
+    var lapSec=parseLapTime(bestSlot.lapTime);
+    var laps=lapSec>0?Math.floor(dur*60/lapSec):0;
+    var fuelUsed=laps>0?Math.round(parseFloat(bestSlot.fuelPerLap||0)*laps*10)/10:0;
+    var tankSize=getTankSize(carNum);
+    // fuel in tank = tankSize at start of stint (simplified: refill to full each stop)
+    var fuelInTank=tankSize>0?tankSize:0;
+    // pit window: when fuel would run out
+    var pitWindowLap=0,pitWindowTime='';
+    if(lapSec>0&&parseFloat(bestSlot.fuelPerLap)>0&&tankSize>0){
+      pitWindowLap=Math.floor(tankSize/parseFloat(bestSlot.fuelPerLap));
+      pitWindowTime=fmtT(sm+elapsed+pitWindowLap*lapSec/60);
+    }
+
     plan.push({stintNum:stintNum+1,pit:false,driver:name,pi:pi,color:col,
       absStart:absStart,absEnd:absEnd,duration:dur,isNight:isNight,
-      elapsedStart:elapsed,elapsedEnd:elapsed+dur});
+      elapsedStart:elapsed,elapsedEnd:elapsed+dur,
+      laps:laps,fuelUsed:fuelUsed,fuelInTank:fuelInTank,
+      pitWindowLap:pitWindowLap,pitWindowTime:pitWindowTime,
+      lapTime:bestSlot.lapTime||''});
 
     lastPI=pi;elapsed+=dur;
 
     if(elapsed<rm){
+      // Fuel added at stop = fuelUsed (refill what was used)
+      var fuelAdded=fuelUsed>0?fuelUsed:0;
       plan.push({stintNum:'PIT',pit:true,driver:'',pi:-1,color:'',
         absStart:absEnd,absEnd:fmtT(sm+elapsed+pitM),duration:pitM,isNight:false,
-        elapsedStart:elapsed,elapsedEnd:elapsed+pitM});
+        elapsedStart:elapsed,elapsedEnd:elapsed+pitM,
+        fuelAdded:fuelAdded,lapAtStop:laps*(stintNum+1)});
       elapsed+=pitM;
     }
     stintNum++;
@@ -905,7 +1047,7 @@ function renderPlanView(){
   if(!plan||!plan.length){
     document.getElementById('planStats').innerHTML='<div style="color:var(--muted);font-size:12px;grid-column:1/-1;padding:10px 0">Noch kein Plan berechnet. Gehe zu Verfuegbarkeit und klicke Plan berechnen.</div>';
     document.getElementById('ganttWrap').innerHTML='';
-    document.getElementById('stintBody').innerHTML='';
+    var sc=document.getElementById('stintCards');if(sc)sc.innerHTML='';
     document.getElementById('drvDist').innerHTML='';
     return;
   }
@@ -1089,23 +1231,65 @@ function endDrag(e){
   autoSave();
 }
 
-// ===================== TABLE =====================
+// ===================== STINT CARDS =====================
 function renderTable(carNum,plan){
-  var rows='';
-  plan.forEach(function(p){
+  var html='';
+  var tankSize=getTankSize(carNum);
+
+  plan.forEach(function(p,idx){
     if(p.pit){
-      rows+='<tr class="pit-row"><td style="color:var(--muted)">&#9632;</td><td style="color:rgba(245,158,11,.5);font-style:italic">Boxenstopp</td><td>'+p.absStart+'</td><td>'+p.absEnd+'</td><td>'+p.duration+' Min</td><td></td></tr>';
+      // PIT STOP BLOCK
+      var driverChange='';
+      // Check if next stint has different driver
+      var next=plan[idx+1];
+      if(next&&!next.pit&&next.driver&&p.pit){
+        var prev=plan[idx-1];
+        if(prev&&!prev.pit&&prev.driver!==next.driver){
+          driverChange='<span style="color:var(--acc);font-size:10px;font-weight:600">Fahrerwechsel: '+next.driver+'</span>';
+        }
+      }
+      html+='<div style="display:flex;align-items:stretch;gap:0;margin:0 0 2px 0">'
+        +'<div style="width:3px;background:rgba(245,158,11,.3);border-radius:2px;flex-shrink:0;margin-right:10px"></div>'
+        +'<div style="flex:1;background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.15);border-radius:6px;padding:8px 12px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">'
+        +'<span style="font-size:10px;font-weight:700;color:rgba(245,158,11,.7)">BOX</span>'
+        +'<span style="font-size:10px;color:var(--muted)">Dauer: <b style="color:var(--text)">'+p.duration+' Min</b></span>'
+        +(p.fuelAdded>0?'<span style="font-size:10px;color:var(--muted)">Sprit: <b style="color:var(--green)">+'+p.fuelAdded+' L</b></span>':'')
+        +(driverChange?'<span style="font-size:10px;color:var(--muted)"> | </span>'+driverChange:'')
+        +'</div></div>';
     } else {
-      var badge=p.isNight?'<span class="badge bn">Nacht</span>':'<span class="badge bd">Tag</span>';
-      rows+='<tr>'
-        +'<td style="color:var(--muted)">'+p.stintNum+'</td>'
-        +'<td>'+getDotHtml(p.color,7)+'&nbsp;'+p.driver+'</td>'
-        +'<td>'+p.absStart+'</td><td>'+p.absEnd+'</td>'
-        +'<td>'+p.duration+' Min</td><td>'+badge+'</td>'
-        +'</tr>';
+      // STINT BLOCK
+      var nightBadge=p.isNight
+        ?'<span style="background:rgba(168,85,247,.15);color:#c084fc;font-size:9px;padding:2px 7px;border-radius:9px;font-weight:600">Nacht</span>'
+        :'<span style="background:rgba(245,158,11,.1);color:#fbbf24;font-size:9px;padding:2px 7px;border-radius:9px;font-weight:600">Tag</span>';
+
+      html+='<div style="display:flex;align-items:stretch;gap:0;margin:0 0 2px 0">'
+        +'<div style="width:3px;background:'+p.color+';border-radius:2px;flex-shrink:0;margin-right:10px"></div>'
+        +'<div style="flex:1;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:10px 14px">'
+
+        // Header line: # + driver + time + night badge
+        +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;flex-wrap:wrap">'
+        +'<span style="font-size:11px;font-weight:700;color:var(--muted);width:24px">#'+p.stintNum+'</span>'
+        +getDotHtml(p.color,8)
+        +'<span style="font-size:13px;font-weight:600;color:var(--text)">'+p.driver+'</span>'
+        +'<span style="font-size:11px;color:var(--m2);margin-left:4px">'+p.absStart+' &ndash; '+p.absEnd+'</span>'
+        +'<span style="margin-left:auto">'+nightBadge+'</span>'
+        +'</div>'
+
+        // Data row
+        +'<div style="display:flex;gap:20px;flex-wrap:wrap">'
+        +(p.laps>0?'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Runden</span><span style="font-size:12px;font-weight:600;color:var(--text)">~'+p.laps+'</span></div>':'')
+        +(p.fuelUsed>0?'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Verbrauch</span><span style="font-size:12px;font-weight:600;color:var(--text)">'+p.fuelUsed+' L</span></div>':'')
+        +(tankSize>0&&p.fuelUsed>0?'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Im Tank</span><span style="font-size:12px;font-weight:600;color:'+(p.fuelUsed>tankSize*0.8?'var(--red)':'var(--text)')+'">'+Math.max(0,Math.round((tankSize-p.fuelUsed)*10)/10)+' L</span></div>':'')
+        +(p.pitWindowTime?'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Pit-Fenster</span><span style="font-size:12px;font-weight:600;color:var(--acc)">'+p.pitWindowTime+' (~Rd '+p.pitWindowLap+')</span></div>':'')
+        +(p.lapTime?'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Rd-Zeit</span><span style="font-size:12px;font-weight:600;color:var(--text)">'+p.lapTime+'</span></div>':'')
+        +'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Stintzeit</span><span style="font-size:12px;font-weight:600;color:var(--text)">'+p.duration+' Min</span></div>'
+        +'</div>'
+        +'</div></div>';
     }
   });
-  document.getElementById('stintBody').innerHTML=rows;
+
+  var el=document.getElementById('stintCards');
+  if(el)el.innerHTML=html;
 }
 
 // ===================== DIST =====================
@@ -1237,10 +1421,10 @@ function doReset(){
   S.avail={};
   S.plans={1:[],2:[],3:[],4:[]};
   S.cars={
-    1:{name:'Fahrzeug 1',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',active:true},
-    2:{name:'Fahrzeug 2',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',active:true},
-    3:{name:'Fahrzeug 3',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',active:true},
-    4:{name:'Fahrzeug 4',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',active:true}
+    1:{name:'Fahrzeug 1',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',tankSize:'',active:true},
+    2:{name:'Fahrzeug 2',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',tankSize:'',active:true},
+    3:{name:'Fahrzeug 3',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',tankSize:'',active:true},
+    4:{name:'Fahrzeug 4',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',tankSize:'',active:true}
   };
   S.pool=savedPool;
   initSlots();
