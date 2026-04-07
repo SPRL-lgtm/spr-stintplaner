@@ -1152,7 +1152,7 @@ function renderGantt(carNum,plan){
       var l=(p.elapsedStart/rm*100).toFixed(3);
       var w=(p.duration/rm*100).toFixed(3);
       var nc=p.isNight?' night':'';
-      var label=parseFloat(w)>1.5?('#'+p.stintNum+' '+p.absStart):'';
+      var label=parseFloat(w)>1?String(p.stintNum):'';
       stintSegs+='<div class="gseg'+nc+'" '
         +'data-idx="'+pidx+'" '
         +'style="top:2px;height:26px;left:'+l+'%;width:'+w+'%;background:'+col+';font-size:11px" '
@@ -1171,7 +1171,7 @@ function renderGantt(carNum,plan){
 }
 
 // ===================== DRAG & DROP =====================
-var drag={active:false,idx:-1,car:-1,el:null,startX:0,origLeft:0,trackW:0,trackEl:null,origElapsed:0,pctPerPx:0};
+var drag={active:false,idx:-1,car:-1,el:null,startX:0,origLeft:0,trackW:0,trackEl:null,origElapsed:0,pctPerPx:0,currentLeft:0};
 
 function startDrag(e,carNum,planIdx){
   var plan=S.plans[carNum];
@@ -1200,6 +1200,7 @@ function onDrag(e){
   if(!drag.active)return;
   var dx=e.clientX-drag.startX;
   var newLeft=Math.max(0,Math.min(99,drag.origLeft+dx*drag.pctPerPx));
+  drag.currentLeft=newLeft;
   drag.el.style.left=newLeft.toFixed(3)+'%';
 }
 
@@ -1208,63 +1209,79 @@ function endDrag(e){
   document.removeEventListener('mousemove',onDrag);
   document.removeEventListener('mouseup',endDrag);
   drag.el.classList.remove('dragging');
+  drag.active=false;
 
   var plan=S.plans[drag.car];
-  var p=plan[drag.idx];
-  var pi=p.pi;
   var sm=getStartMins(drag.car);
+  var rm=getRaceMins(drag.car);
   var pitM=getPitDur(drag.car);
+  var p=plan[drag.idx];
 
-  // Snap to end of previous stint:
-  // Find the previous non-pit entry
-  var prevEnd=0; // elapsed minutes
-  for(var i=drag.idx-1;i>=0;i--){
-    if(!plan[i].pit){
-      prevEnd=plan[i].elapsedEnd;
-      break;
-    } else {
-      // include pit duration
-    }
-  }
-  // Find the pit before this stint
-  var pitBefore=null;
-  if(drag.idx>0&&plan[drag.idx-1].pit) pitBefore=plan[drag.idx-1];
+  // Determine target position from where mouse released (drag.currentLeft = %)
+  var targetElapsed=Math.round(drag.currentLeft/100*rm);
 
-  // Snap: this stint starts right after pit (or at prevEnd if no pit)
-  var newElapsed = pitBefore ? pitBefore.elapsedStart + pitBefore.duration : prevEnd;
+  // Find which stint slot this corresponds to (which sequential slot index)
+  // Count only non-pit stints
+  var stintSlots=[];
+  plan.forEach(function(entry,i){if(!entry.pit)stintSlots.push(i);});
 
-  // Check availability
-  var avail=isAvailAt(drag.car,pi,newElapsed);
-  if(avail==='unavail'){
-    drag.el.style.left=drag.origLeft.toFixed(3)+'%';
-    drag.el.classList.add('blocked');
-    setTimeout(function(){drag.el.classList.remove('blocked');},400);
-    showToast('Fahrer nicht verfuegbar in diesem Zeitraum!','err');
-    drag.active=false;
+  // Find which slot index the dragged stint was in
+  var fromSlotIdx=stintSlots.indexOf(drag.idx);
+  if(fromSlotIdx<0){renderGantt(drag.car,plan);return;}
+
+  // Find target slot: which slot's position is closest to targetElapsed
+  var bestSlot=fromSlotIdx;
+  var bestDist=9999999;
+  stintSlots.forEach(function(planIdx,slotIdx){
+    var dist=Math.abs(plan[planIdx].elapsedStart-targetElapsed);
+    if(dist<bestDist){bestDist=dist;bestSlot=slotIdx;}
+  });
+
+  if(bestSlot===fromSlotIdx){
+    // No change - re-render to reset visual
+    renderGantt(drag.car,plan);
     return;
   }
 
-  // Apply position
-  p.elapsedStart=newElapsed;
-  p.elapsedEnd=newElapsed+p.duration;
-  p.absStart=fmtT(sm+newElapsed);
-  p.absEnd=fmtT(sm+newElapsed+p.duration);
+  // Swap the driver assignments between the two slots
+  var toSlotIdx=bestSlot;
+  var fromPlanIdx=stintSlots[fromSlotIdx];
+  var toPlanIdx=stintSlots[toSlotIdx];
 
-  var midH=Math.floor((sm+newElapsed+p.duration/2)/60)%24;
-  var sunriseH=parseInt(document.getElementById('sunrise').value||7);
-  var sunsetH=parseInt(document.getElementById('sunset').value||21);
-  p.isNight=midH<sunriseH||midH>=sunsetH;
+  // Swap pi, driver, color, lapTime, fuelPerLap between the two stints
+  var tmp={pi:plan[fromPlanIdx].pi, driver:plan[fromPlanIdx].driver,
+    color:plan[fromPlanIdx].color, lapTime:plan[fromPlanIdx].lapTime,
+    fuelUsed:plan[fromPlanIdx].fuelUsed, laps:plan[fromPlanIdx].laps,
+    fuelInTank:plan[fromPlanIdx].fuelInTank,
+    pitWindowLap:plan[fromPlanIdx].pitWindowLap,
+    pitWindowTime:plan[fromPlanIdx].pitWindowTime};
 
-  // Cascade update all following entries
-  recalcFromIdx(drag.car, drag.idx);
+  plan[fromPlanIdx].pi=plan[toPlanIdx].pi;
+  plan[fromPlanIdx].driver=plan[toPlanIdx].driver;
+  plan[fromPlanIdx].color=plan[toPlanIdx].color;
+  plan[fromPlanIdx].lapTime=plan[toPlanIdx].lapTime;
+  plan[fromPlanIdx].fuelUsed=plan[toPlanIdx].fuelUsed;
+  plan[fromPlanIdx].laps=plan[toPlanIdx].laps;
+  plan[fromPlanIdx].fuelInTank=plan[toPlanIdx].fuelInTank;
+  plan[fromPlanIdx].pitWindowLap=plan[toPlanIdx].pitWindowLap;
+  plan[fromPlanIdx].pitWindowTime=plan[toPlanIdx].pitWindowTime;
 
-  drag.active=false;
+  plan[toPlanIdx].pi=tmp.pi;
+  plan[toPlanIdx].driver=tmp.driver;
+  plan[toPlanIdx].color=tmp.color;
+  plan[toPlanIdx].lapTime=tmp.lapTime;
+  plan[toPlanIdx].fuelUsed=tmp.fuelUsed;
+  plan[toPlanIdx].laps=tmp.laps;
+  plan[toPlanIdx].fuelInTank=tmp.fuelInTank;
+  plan[toPlanIdx].pitWindowLap=tmp.pitWindowLap;
+  plan[toPlanIdx].pitWindowTime=tmp.pitWindowTime;
+
+  showToast('Stint getauscht: '+plan[toPlanIdx].driver+' <-> '+plan[fromPlanIdx].driver,'ok');
   renderGantt(drag.car,plan);
   renderTable(drag.car,plan);
+  renderDist(drag.car,plan);
   autoSave();
-  showToast('Stint '+p.stintNum+' neu positioniert','ok');
 }
-
 // ===================== ACTUAL END TIME =====================
 function setActualEnd(carNum, idx, timeStr){
   var plan=S.plans[carNum];
@@ -1272,7 +1289,6 @@ function setActualEnd(carNum, idx, timeStr){
   var p=plan[idx];
   if(!timeStr){
     p.actualEnd='';
-    // Recompute from original duration
     recalcFromIdx(carNum, idx);
     renderPlanView();
     autoSave();
@@ -1288,29 +1304,21 @@ function recalcFromIdx(carNum, idx){
   var plan=S.plans[carNum];
   var sm=getStartMins(carNum);
   var pitM=getPitDur(carNum);
-
-  // Find the stint at idx and adjust its end based on actualEnd
   var p=plan[idx];
   if(!p||p.pit)return;
-
   if(p.actualEnd){
-    // Parse actual end time to elapsed minutes
     var aep=p.actualEnd.split(':');
     var aeAbsMins=parseInt(aep[0])*60+parseInt(aep[1]);
-    // Handle midnight wrap
     var stintStartAbsMins=sm+p.elapsedStart;
     if(aeAbsMins<stintStartAbsMins%1440) aeAbsMins+=24*60;
     var newDur=aeAbsMins-(stintStartAbsMins%1440);
     if(newDur<0)newDur+=24*60;
-    // clamp reasonable
     if(newDur<1)newDur=1;
     if(newDur>480)newDur=480;
     p.duration=newDur;
     p.elapsedEnd=p.elapsedStart+newDur;
     p.absEnd=fmtT(sm+p.elapsedEnd);
   }
-
-  // Now cascade: update all subsequent entries
   var elapsed=p.elapsedEnd;
   for(var i=idx+1;i<plan.length;i++){
     var entry=plan[i];
@@ -1324,7 +1332,6 @@ function recalcFromIdx(carNum, idx){
       entry.elapsedEnd=elapsed+entry.duration;
       entry.absEnd=fmtT(sm+entry.elapsedEnd);
       elapsed=entry.elapsedEnd;
-      // Also recompute night status
       var midH=Math.floor((sm+elapsed-entry.duration/2)/60)%24;
       var sunriseH=parseInt(document.getElementById('sunrise').value||7);
       var sunsetH=parseInt(document.getElementById('sunset').value||21);
@@ -1337,14 +1344,11 @@ function recalcFromIdx(carNum, idx){
 function renderTable(carNum,plan){
   var html='';
   var tankSize=getTankSize(carNum);
-
   plan.forEach(function(p,idx){
     if(p.pit){
-      // PIT STOP BLOCK
       var driverChange='';
-      // Check if next stint has different driver
       var next=plan[idx+1];
-      if(next&&!next.pit&&next.driver&&p.pit){
+      if(next&&!next.pit&&next.driver){
         var prev=plan[idx-1];
         if(prev&&!prev.pit&&prev.driver!==next.driver){
           driverChange='<span style="color:var(--acc);font-size:10px;font-weight:600">Fahrerwechsel: '+next.driver+'</span>';
@@ -1359,16 +1363,12 @@ function renderTable(carNum,plan){
         +(driverChange?'<span style="font-size:10px;color:var(--muted)"> | </span>'+driverChange:'')
         +'</div></div>';
     } else {
-      // STINT BLOCK
       var nightBadge=p.isNight
         ?'<span style="background:rgba(168,85,247,.15);color:#c084fc;font-size:9px;padding:2px 7px;border-radius:9px;font-weight:600">Nacht</span>'
         :'<span style="background:rgba(245,158,11,.1);color:#fbbf24;font-size:9px;padding:2px 7px;border-radius:9px;font-weight:600">Tag</span>';
-
       html+='<div style="display:flex;align-items:stretch;gap:0;margin:0 0 2px 0">'
         +'<div style="width:3px;background:'+p.color+';border-radius:2px;flex-shrink:0;margin-right:10px"></div>'
         +'<div style="flex:1;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:10px 14px">'
-
-        // Header line: # + driver + time + night badge + actual end input
         +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;flex-wrap:wrap">'
         +'<span style="font-size:11px;font-weight:700;color:var(--muted);width:24px">#'+p.stintNum+'</span>'
         +getDotHtml(p.color,8)
@@ -1377,14 +1377,12 @@ function renderTable(carNum,plan){
         +'<span style="margin-left:auto;display:flex;align-items:center;gap:6px">'
         +nightBadge
         +'<span style="font-size:9px;color:var(--muted)">Ist-Ende:</span>'
-        +'<input type="time" value="'+p.actualEnd+'" data-idx="'+idx+'" data-car="'+carNum+'" '
+        +'<input type="time" value="'+(p.actualEnd||'')+'" data-idx="'+idx+'" data-car="'+carNum+'" '
         +'style="width:100px;padding:4px 8px;font-size:12px;font-weight:600;margin:0;background:var(--s3);border:2px solid '+(p.actualEnd?'var(--acc)':'var(--border)')+';border-radius:5px;color:'+(p.actualEnd?'var(--acc)':'var(--m2)')+'" '
         +'onchange="setActualEnd('+carNum+','+idx+',this.value)" '
         +'title="Tatsaechliche Endzeit - alles danach wird neu berechnet">'
         +'</span>'
         +'</div>'
-
-        // Data row
         +'<div style="display:flex;gap:20px;flex-wrap:wrap">'
         +(p.laps>0?'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Runden</span><span style="font-size:12px;font-weight:600;color:var(--text)">~'+p.laps+'</span></div>':'')
         +(p.fuelUsed>0?'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Verbrauch</span><span style="font-size:12px;font-weight:600;color:var(--text)">'+p.fuelUsed+' L</span></div>':'')
@@ -1397,7 +1395,6 @@ function renderTable(carNum,plan){
         +'</div></div>';
     }
   });
-
   var el=document.getElementById('stintCards');
   if(el)el.innerHTML=html;
 }
@@ -1432,33 +1429,27 @@ function autoSave(){
 
 function collectFormData(){
   return {
-    raceName: document.getElementById('raceName').value,
-    startTime: document.getElementById('startTime').value,
-    raceDur: document.getElementById('raceDur').value,
-    stintLen: document.getElementById('stintLen').value,
-    pitDur: document.getElementById('pitDur').value,
-    sunrise: document.getElementById('sunrise').value,
-    sunset: document.getElementById('sunset').value
+    raceName:document.getElementById('raceName').value,
+    startTime:document.getElementById('startTime').value,
+    raceDur:document.getElementById('raceDur').value,
+    stintLen:document.getElementById('stintLen').value,
+    pitDur:document.getElementById('pitDur').value,
+    sunrise:document.getElementById('sunrise').value,
+    sunset:document.getElementById('sunset').value
   };
 }
 
 function saveData(){
   syncAll();
   var data={
-    form: collectFormData(),
-    pool: S.pool,
-    cars: S.cars,
-    avail: S.avail,
-    plans: S.plans,
-    activeAvailCar: activeAvailCar,
-    activePlanCar: activePlanCar
+    form:collectFormData(),
+    pool:S.pool,cars:S.cars,avail:S.avail,plans:S.plans,
+    activeAvailCar:activeAvailCar,activePlanCar:activePlanCar
   };
   try{
     localStorage.setItem('spr_stintplaner',JSON.stringify(data));
     showToast('Gespeichert','ok');
-  }catch(e){
-    showToast('Speichern fehlgeschlagen','err');
-  }
+  }catch(e){showToast('Speichern fehlgeschlagen','err');}
 }
 
 function loadData(){
@@ -1466,13 +1457,7 @@ function loadData(){
     var raw=localStorage.getItem('spr_stintplaner');
     if(!raw)return false;
     var data=JSON.parse(raw);
-    // Restore form
-    if(data.form){
-      Object.keys(data.form).forEach(function(k){
-        var el=document.getElementById(k);
-        if(el)el.value=data.form[k];
-      });
-    }
+    if(data.form){Object.keys(data.form).forEach(function(k){var el=document.getElementById(k);if(el)el.value=data.form[k];});}
     if(data.pool)S.pool=data.pool;
     if(data.cars)S.cars=data.cars;
     if(data.avail)S.avail=data.avail;
@@ -1485,10 +1470,7 @@ function loadData(){
 
 function exportJSON(){
   syncAll();
-  var data={
-    form:collectFormData(),
-    pool:S.pool,cars:S.cars,avail:S.avail,plans:S.plans
-  };
+  var data={form:collectFormData(),pool:S.pool,cars:S.cars,avail:S.avail,plans:S.plans};
   var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   var a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
@@ -1528,8 +1510,7 @@ function doReset(){
   closeReset();
   localStorage.removeItem('spr_stintplaner');
   var savedPool=keepPool?S.pool.slice():['','','','',''];
-  S.avail={};
-  S.plans={1:[],2:[],3:[],4:[]};
+  S.avail={};S.plans={1:[],2:[],3:[],4:[]};
   S.cars={
     1:{name:'Fahrzeug 1',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',tankSize:'',active:true},
     2:{name:'Fahrzeug 2',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',tankSize:'',active:true},
@@ -1542,13 +1523,10 @@ function doReset(){
   document.getElementById('startTime').value='07:00';
   document.getElementById('raceDur').value='24';
   document.getElementById('stintLen').value='60';
-  document.getElementById('pitDur').value='3';
+  document.getElementById('pitDur').value='90';
   var sunEl=document.getElementById('sunrise');if(sunEl)sunEl.value='7';
   var sunsetEl=document.getElementById('sunset');if(sunsetEl)sunsetEl.value='21';
-  updateTop();
-  initSetup();
-  renderPool();
-  renderVehGrid();
+  updateTop();initSetup();renderPool();renderVehGrid();
   showToast(keepPool?'Zurueckgesetzt (Fahrerpool behalten)':'Komplett zurueckgesetzt','ok');
 }
 
@@ -1570,12 +1548,7 @@ function showToast(msg,type){
   initSetup();
   renderPool();
   renderVehGrid();
-  if(S.plans&&S.plans[1]&&S.plans[1].length){
-    // plans exist, render plan tab if it was active
-  }
 })();
 </script>
 </body>
 </html>
-ENDOFFILE
-echo "done: $(wc -l < /home/claude/SPR_v3/index.html) lines"
