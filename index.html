@@ -1303,39 +1303,113 @@ function setActualEnd(carNum, idx, timeStr){
 function recalcFromIdx(carNum, idx){
   var plan=S.plans[carNum];
   var sm=getStartMins(carNum);
+  var rm=getRaceMins(carNum);
   var pitM=getPitDur(carNum);
+  var stintM=getStintLen(carNum);
+  var sunriseH=parseInt(document.getElementById('sunrise').value||7);
+  var sunsetH=parseInt(document.getElementById('sunset').value||21);
   var p=plan[idx];
   if(!p||p.pit)return;
+
+  // Apply actual end time if set
   if(p.actualEnd){
     var aep=p.actualEnd.split(':');
     var aeAbsMins=parseInt(aep[0])*60+parseInt(aep[1]);
     var stintStartAbsMins=sm+p.elapsedStart;
     if(aeAbsMins<stintStartAbsMins%1440) aeAbsMins+=24*60;
-    var newDur=aeAbsMins-(stintStartAbsMins%1440);
-    if(newDur<0)newDur+=24*60;
+    var newDur=Math.round(aeAbsMins-(stintStartAbsMins%1440));
     if(newDur<1)newDur=1;
     if(newDur>480)newDur=480;
     p.duration=newDur;
     p.elapsedEnd=p.elapsedStart+newDur;
     p.absEnd=fmtT(sm+p.elapsedEnd);
   }
+
+  // Cascade update all following entries
   var elapsed=p.elapsedEnd;
   for(var i=idx+1;i<plan.length;i++){
     var entry=plan[i];
-    entry.elapsedStart=elapsed;
-    entry.absStart=fmtT(sm+elapsed);
+    entry.elapsedStart=Math.round(elapsed);
+    entry.absStart=fmtT(sm+entry.elapsedStart);
     if(entry.pit){
-      elapsed+=entry.duration;
-      entry.elapsedEnd=elapsed;
-      entry.absEnd=fmtT(sm+elapsed);
+      elapsed=Math.round(elapsed)+entry.duration;
+      entry.elapsedEnd=Math.round(elapsed);
+      entry.absEnd=fmtT(sm+entry.elapsedEnd);
     } else {
-      entry.elapsedEnd=elapsed+entry.duration;
+      entry.duration=Math.round(entry.duration);
+      entry.elapsedEnd=Math.round(elapsed)+entry.duration;
       entry.absEnd=fmtT(sm+entry.elapsedEnd);
       elapsed=entry.elapsedEnd;
       var midH=Math.floor((sm+elapsed-entry.duration/2)/60)%24;
-      var sunriseH=parseInt(document.getElementById('sunrise').value||7);
-      var sunsetH=parseInt(document.getElementById('sunset').value||21);
       entry.isNight=midH<sunriseH||midH>=sunsetH;
+    }
+  }
+
+  // Check if race end is covered - extend last stint or add new one
+  var raceEnd=rm; // elapsed minutes at race end
+  var lastEntry=plan[plan.length-1];
+  var lastEnd=lastEntry?lastEntry.elapsedEnd:0;
+
+  if(lastEnd<raceEnd-0.5){
+    // Race not covered - extend last non-pit stint or add new
+    var lastStint=null;
+    for(var j=plan.length-1;j>=0;j--){
+      if(!plan[j].pit){lastStint=plan[j];break;}
+    }
+    // Remove trailing pit if it's the last entry
+    if(plan[plan.length-1].pit){
+      plan.pop();
+    }
+    if(lastStint&&lastStint.elapsedEnd<raceEnd){
+      // Add extra stints to fill remaining race time
+      var elap=lastStint.elapsedEnd;
+      var stintNum=lastStint.stintNum+1;
+      // Find the slot index for round-robin
+      var slots=S.cars[carNum].slots.filter(function(s){return s.poolIdx>=0&&getDriverName(s.poolIdx);});
+      var slotIdx=(plan.filter(function(e){return!e.pit}).length)%Math.max(slots.length,1);
+      while(elap<raceEnd){
+        var remaining=Math.round(raceEnd-elap);
+        var dur=Math.min(stintM,remaining);
+        // pit before new stint
+        if(elap>lastStint.elapsedEnd){
+          var pitStart=fmtT(sm+elap);
+          elap=Math.round(elap)+Math.round(pitM);
+          plan.push({stintNum:'PIT',pit:true,driver:'',pi:-1,color:'',
+            absStart:pitStart,absEnd:fmtT(sm+elap),duration:Math.round(pitM),
+            isNight:false,elapsedStart:elap-Math.round(pitM),elapsedEnd:elap,
+            fuelAdded:0,lapAtStop:0});
+        }
+        var slot=slots[slotIdx%Math.max(slots.length,1)];
+        var pi=slot?slot.poolIdx:-1;
+        var name=slot?getDriverName(pi):'';
+        var col=pi>=0?DRV_COLORS[pi%DRV_COLORS.length]:'#888';
+        var midH2=Math.floor((sm+elap+dur/2)/60)%24;
+        var isNight2=midH2<sunriseH||midH2>=sunsetH;
+        var absS=fmtT(sm+elap),absE=fmtT(sm+elap+dur);
+        plan.push({stintNum:stintNum,pit:false,driver:name,pi:pi,color:col,
+          absStart:absS,absEnd:absE,duration:dur,isNight:isNight2,
+          elapsedStart:elap,elapsedEnd:elap+dur,
+          laps:0,fuelUsed:0,fuelInTank:0,pitWindowLap:0,pitWindowTime:'',
+          lapTime:'',actualEnd:''});
+        elap=Math.round(elap+dur);
+        stintNum++;
+        slotIdx++;
+        if(elap>=raceEnd)break;
+      }
+    }
+  } else if(lastEnd>raceEnd+0.5){
+    // Last stint overshoots - trim it
+    for(var j=plan.length-1;j>=0;j--){
+      if(!plan[j].pit){
+        var overshoot=lastEnd-raceEnd;
+        plan[j].duration=Math.round(plan[j].duration-overshoot);
+        if(plan[j].duration<1)plan[j].duration=1;
+        plan[j].elapsedEnd=plan[j].elapsedStart+plan[j].duration;
+        plan[j].absEnd=fmtT(sm+plan[j].elapsedEnd);
+        // Remove any trailing pit after this
+        if(j===plan.length-2&&plan[plan.length-1].pit) plan.pop();
+        break;
+      }
     }
   }
 }
@@ -1389,7 +1463,7 @@ function renderTable(carNum,plan){
         +(tankSize>0&&p.fuelUsed>0?'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Im Tank</span><span style="font-size:12px;font-weight:600;color:'+(p.fuelUsed>tankSize*0.8?'var(--red)':'var(--text)')+'">'+Math.max(0,Math.round((tankSize-p.fuelUsed)*10)/10)+' L</span></div>':'')
         +(p.pitWindowTime?'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Pit-Fenster</span><span style="font-size:12px;font-weight:600;color:var(--acc)">'+p.pitWindowTime+' (~Rd '+p.pitWindowLap+')</span></div>':'')
         +(p.lapTime?'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Rd-Zeit</span><span style="font-size:12px;font-weight:600;color:var(--text)">'+p.lapTime+'</span></div>':'')
-        +'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Stintzeit</span><span style="font-size:12px;font-weight:600;color:'+(p.actualEnd?'var(--acc)':'var(--text)')+'">'+p.duration+' Min'+(p.actualEnd?' *':'')+'</span></div>'
+        +'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Stintzeit</span><span style="font-size:12px;font-weight:600;color:'+(p.actualEnd?'var(--acc)':'var(--text)')+'">'+Math.round(p.duration)+' Min'+(p.actualEnd?' *':'')+'</span></div>'
         +(p.actualEnd?'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--acc);text-transform:uppercase;letter-spacing:.06em">Korrigiert</span><span style="font-size:10px;font-weight:600;color:var(--acc)">Ist-Ende: '+p.actualEnd+'</span></div>':'')
         +'</div>'
         +'</div></div>';
