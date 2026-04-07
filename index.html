@@ -321,7 +321,7 @@ tbody tr:hover td{background:var(--s2)}
 
 <!-- PLAN -->
 <div class="panel" id="tab-plan">
-  <div style="max-width:1200px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:16px">
+  <div style="max-width:1560px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:16px">
   <div class="ctabs" id="planCtabs" style="margin-bottom:0"></div>
   <div style="background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:0">
     <!-- stat blocks -->
@@ -1049,23 +1049,32 @@ function buildPlan(carNum){
 
   while(elapsed<rm){
     var remaining=rm-elapsed;
-    // Determine stint duration:
-    // If remaining fits in one stint: use remaining (last stint)
-    // If remaining - stintM - pitM < stintM: extend this stint to fill all (avoid tiny last stint)
     var dur;
     if(remaining<=stintM){
-      dur=remaining; // final stint
+      // This is the last stint - take whatever is left
+      dur=remaining;
     } else {
-      var afterStintAndPit=remaining-stintM-pitM;
-      if(afterStintAndPit>0&&afterStintAndPit<stintM){
-        // Next stint would be tiny - fill now instead
-        dur=remaining-pitM; // take everything except one pit
-        if(dur>stintM*1.5)dur=stintM; // don't extend too much
+      // Check: after this full stint + one pit, how much remains?
+      var afterPit=remaining-stintM-pitM;
+      if(afterPit<=0){
+        // Not enough for another pit+stint - this is the last stint
+        dur=remaining;
+      } else if(afterPit<stintM){
+        // After pit, remainder < full stint = would create short middle stint
+        // Instead: use full stint now, remainder will be last (short) stint after pit
+        // But only if afterPit is significant (>5min), else extend this stint
+        if(afterPit>=5){
+          dur=stintM; // normal stint, short last stint is ok at very end
+        } else {
+          // Too tiny remainder - absorb into this stint
+          dur=remaining-pitM;
+          if(dur>stintM*2)dur=stintM; // safety cap
+        }
       } else {
         dur=stintM;
       }
     }
-    if(dur<=0)dur=remaining;
+    if(dur<=0||isNaN(dur))dur=Math.min(stintM,remaining);
     var midH=Math.floor((sm+elapsed+dur/2)/60)%24;
     var isNight=midH<sunriseH||midH>=sunsetH;
 
