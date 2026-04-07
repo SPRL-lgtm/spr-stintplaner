@@ -348,7 +348,7 @@ tbody tr:hover td{background:var(--s2)}
     </div>
     <!-- recalc button -->
     <div style="padding-left:20px;flex-shrink:0">
-      <button onclick="buildAndShow()" style="padding:8px 16px;border-radius:6px;background:var(--acc);border:none;color:#0a0a0f;font-size:11px;font-weight:700;letter-spacing:.05em;cursor:pointer;font-family:inherit;white-space:nowrap">Neu berechnen</button>
+      <button onclick="softRebuild()" style="padding:8px 16px;border-radius:6px;background:var(--acc);border:none;color:#0a0a0f;font-size:11px;font-weight:700;letter-spacing:.05em;cursor:pointer;font-family:inherit;white-space:nowrap">Neu berechnen</button>
     </div>
   </div>
   <div class="card">
@@ -1122,6 +1122,7 @@ function buildPlan(carNum){
 }
 
 function buildAndShow(){
+  // Full rebuild - clears all manual locks
   syncAll();
   for(var c=1;c<=4;c++){
     if(S.cars[c].active===false){S.plans[c]=[];continue;}
@@ -1129,6 +1130,79 @@ function buildAndShow(){
   }
   goTab('plan',document.querySelectorAll('.ntab')[3]);
   autoSave();
+}
+
+function softRebuild(){
+  // Only fill missing stints at end - keep manually locked stints
+  syncAll();
+  var sunriseH=parseInt(document.getElementById('sunrise').value||7);
+  var sunsetH=parseInt(document.getElementById('sunset').value||21);
+
+  for(var c=1;c<=4;c++){
+    if(S.cars[c].active===false)continue;
+    var plan=S.plans[c];
+    if(!plan||!plan.length)continue;
+
+    var rm=getRaceMins(c);
+    var sm=getStartMins(c);
+    var stintM=getStintLen(c);
+    var pitM=getPitDur(c);
+    var slots=S.cars[c].slots.filter(function(s){return s.poolIdx>=0&&getDriverName(s.poolIdx);});
+    if(!slots.length)continue;
+
+    // Find race end coverage
+    var lastEntry=plan[plan.length-1];
+    var lastEnd=lastEntry?lastEntry.elapsedEnd:0;
+
+    if(lastEnd>=rm-0.5) continue; // already covered
+
+    // Remove trailing pit if any before filling
+    if(plan[plan.length-1].pit) plan.pop();
+
+    var elap=plan.length?plan[plan.length-1].elapsedEnd:0;
+    var stintNum=(plan.filter(function(e){return!e.pit}).length)+1;
+    var slotIdx=stintNum%Math.max(slots.length,1);
+
+    while(elap<rm){
+      var remaining=Math.round(rm-elap);
+      var dur=remaining<=stintM?remaining:stintM;
+
+      // Add pit before new stint
+      if(plan.length>0&&!plan[plan.length-1].pit){
+        var ps=fmtT(sm+elap);
+        var pitEnd=elap+pitM;
+        plan.push({stintNum:'PIT',pit:true,driver:'',pi:-1,color:'',
+          absStart:ps,absEnd:fmtT(sm+pitEnd),duration:pitM,isNight:false,
+          elapsedStart:elap,elapsedEnd:pitEnd,fuelAdded:0});
+        elap=pitEnd;
+      }
+
+      var slot=slots[slotIdx%slots.length];
+      var pi=slot.poolIdx;
+      var name=getDriverName(pi)||'';
+      var col=DRV_COLORS[pi%DRV_COLORS.length];
+      var midH=Math.floor((sm+elap+dur/2)/60)%24;
+      var isNight=midH<sunriseH||midH>=sunsetH;
+
+      plan.push({stintNum:stintNum,pit:false,driver:name,pi:pi,color:col,
+        absStart:fmtT(sm+elap),absEnd:fmtT(sm+elap+dur),duration:dur,isNight:isNight,
+        elapsedStart:elap,elapsedEnd:elap+dur,
+        laps:0,fuelUsed:0,fuelInTank:0,pitWindowLap:0,pitWindowTime:'',
+        lapTime:'',actualEnd:'',manualLock:false});
+      elap=Math.round(elap+dur);
+      stintNum++;slotIdx++;
+      if(elap>=rm)break;
+    }
+
+    // Renumber
+    var n=1;
+    plan.forEach(function(e){if(!e.pit)e.stintNum=n++;});
+  }
+
+  renderPlanCtabs();
+  renderPlanView();
+  autoSave();
+  showToast('Plan aktualisiert','ok');
 }
 
 // ===================== PLAN TAB =====================
@@ -1247,7 +1321,7 @@ function renderGantt(carNum,plan){
       var label=parseFloat(w)>1?String(p.stintNum):'';
       stintSegs+='<div class="gseg'+nc+'" '
         +'data-idx="'+pidx+'" '
-        +'style="top:2px;height:26px;left:'+l+'%;width:'+w+'%;background:'+col+';font-size:11px" '
+        +'style="top:2px;height:26px;left:'+l+'%;width:'+w+'%;background:'+col+';font-size:11px;'+(p.manualLock?'outline:2px solid rgba(255,255,255,.4);outline-offset:-2px':'')+'" '
         +'title="Stint '+p.stintNum+': '+p.absStart+' - '+p.absEnd+'" '
         +'onmousedown="startDrag(event,'+carNum+','+pidx+')">'
         +label
@@ -1368,6 +1442,9 @@ function endDrag(e){
   plan[toPlanIdx].pitWindowLap=tmp.pitWindowLap;
   plan[toPlanIdx].pitWindowTime=tmp.pitWindowTime;
 
+  // Mark both stints as manually placed
+  plan[fromPlanIdx].manualLock=true;
+  plan[toPlanIdx].manualLock=true;
   showToast('Stint getauscht: '+plan[toPlanIdx].driver+' <-> '+plan[fromPlanIdx].driver,'ok');
   renderGantt(drag.car,plan);
   renderTable(drag.car,plan);
