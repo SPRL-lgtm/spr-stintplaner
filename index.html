@@ -365,10 +365,10 @@ var DRV_COLORS = ['#3b82f6','#22c55e','#f97316','#a855f7','#ec4899','#06b6d4','#
 var S = {
   pool: ['','','','',''],
   cars: {
-    1:{name:'Fahrzeug 1',slots:[],startTime:'',raceDur:'',stintLen:'',active:true},
-    2:{name:'Fahrzeug 2',slots:[],startTime:'',raceDur:'',stintLen:'',active:true},
-    3:{name:'Fahrzeug 3',slots:[],startTime:'',raceDur:'',stintLen:'',active:true},
-    4:{name:'Fahrzeug 4',slots:[],startTime:'',raceDur:'',stintLen:'',active:true}
+    1:{name:'Fahrzeug 1',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',active:true},
+    2:{name:'Fahrzeug 2',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',active:true},
+    3:{name:'Fahrzeug 3',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',active:true},
+    4:{name:'Fahrzeug 4',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',active:true}
   },
   avail: {},
   plans: {1:[],2:[],3:[],4:[]}
@@ -409,6 +409,11 @@ function getStartMins(c){
 function getStintLen(c){
   var v=c?S.cars[c].stintLen:'';
   if(!v||v==='')v=document.getElementById('stintLen').value||60;
+  return parseInt(v);
+}
+function getPitDur(c){
+  var v=c?S.cars[c].pitDur:'';
+  if(!v||v==='')v=document.getElementById('pitDur').value||3;
   return parseInt(v);
 }
 function timeToPct(t,c){
@@ -456,8 +461,10 @@ function syncAll(){
     if(cd)S.cars[c].raceDur=cd.value;
     var cst=document.getElementById('cstint'+c);
     if(cst)S.cars[c].stintLen=cst.value;
+    var cp=document.getElementById('cpit'+c);
+    if(cp)S.cars[c].pitDur=cp.value;
     var ca=document.getElementById('cactive'+c);
-    if(ca)S.cars[c].active=(ca.value==='1');
+    if(ca)S.cars[c].active=(ca.value=='1');
   }
   S.pool.forEach(function(_,i){
     var inp=document.getElementById('pool_'+i);
@@ -474,24 +481,26 @@ function syncAll(){
 // ===================== SETUP =====================
 function initSetup(){
   var wrap=document.getElementById('carNameInputs');
-  var html='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px">';
+  var html='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">';
   for(var c=1;c<=4;c++){
     var col=CAR_COLORS[c];
-    html+='<div style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:13px">'
-      +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:11px;padding-bottom:9px;border-bottom:1px solid var(--border)">'
-      +getDotHtml(col,9)
-      +'<input type="text" id="cname'+c+'" value="'+S.cars[c].name+'" style="margin:0;flex:1;font-weight:700;font-size:12px;border-color:transparent;background:transparent;padding:2px 4px" oninput="S.cars['+c+'].name=this.value;updateVehTabs();autoSave()">'
+    var isActive=S.cars[c].active!==false;
+    html+='<div style="background:var(--s2);border:1px solid '+(isActive?col:'var(--border)')+';border-radius:8px;padding:13px;opacity:'+(isActive?'1':'0.5')+'">'
+      +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:12px;padding-bottom:9px;border-bottom:1px solid var(--border)">'
+      +'<div style="width:9px;height:9px;border-radius:50%;background:'+col+';flex-shrink:0"></div>'
+      +'<input type="text" id="cname'+c+'" value="'+S.cars[c].name+'" style="margin:0;flex:1;font-weight:700;font-size:12px;border:none;background:transparent;color:var(--text);padding:2px 0;outline:none" oninput="S.cars['+c+'].name=this.value;updateVehTabs();initSetup();autoSave()">'
+      +'<select id="cactive'+c+'" onchange="S.cars['+c+'].active=(this.value==1);initSetup();autoSave()" style="margin:0;width:auto;padding:2px 6px;font-size:10px;font-weight:700;border-radius:4px">'
+      +'<option value="1"'+(isActive?' selected':'')+'>Aktiv</option>'
+      +'<option value="0"+(!isActive?' selected':'')+'>Inaktiv</option>'
+      +'</select>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
-      +'<div class="f"><label>Startzeit</label><input type="time" id="cstart'+c+'" value="'+(S.cars[c].startTime||'')+'" placeholder="Global" oninput="S.cars['+c+'].startTime=this.value;autoSave()"></div>'
+      +'<div class="f"><label>Startzeit</label><input type="time" id="cstart'+c+'" value="'+(S.cars[c].startTime||'')+'" oninput="S.cars['+c+'].startTime=this.value;autoSave()"></div>'
       +'<div class="f"><label>Dauer (h)</label><input type="number" id="cdur'+c+'" value="'+(S.cars[c].raceDur||'')+'" min="0.5" max="72" step="0.5" placeholder="Global" oninput="S.cars['+c+'].raceDur=this.value;autoSave()"></div>'
       +'<div class="f"><label>Stint (Min)</label><input type="number" id="cstint'+c+'" value="'+(S.cars[c].stintLen||'')+'" min="5" max="300" placeholder="Global" oninput="S.cars['+c+'].stintLen=this.value;autoSave()"></div>'
-      +'<div class="f"><label>Aktiv</label>'
-      +'<select id="cactive'+c+'" oninput="S.cars['+c+'].active=(this.value==='1');autoSave()" style="margin:0">'
-      +'<option value="1"'+(S.cars[c].active!==false?' selected':'')+'>Ja</option>'
-      +'<option value="0"'+(S.cars[c].active===false?' selected':'')+'>Nein</option>'
-      +'</select></div>'
+      +'<div class="f"><label>Box (Min)</label><input type="number" id="cpit'+c+'" value="'+(S.cars[c].pitDur||'')+'" min="1" max="60" placeholder="Global" oninput="S.cars['+c+'].pitDur=this.value;autoSave()"></div>'
       +'</div>'
+      +'<div style="margin-top:8px;font-size:9px;color:var(--muted)">Leer = globale Einstellung</div>'
       +'</div>';
   }
   html+='</div>';
@@ -643,7 +652,7 @@ function selectAvailCar(n,container){
 
 // ===================== AVAIL AXIS =====================
 function renderAvailAxis(){
-  var rm=getRaceMins(),sm=getStartMins(),steps=12;
+  var rm=getRaceMins(activeAvailCar),sm=getStartMins(activeAvailCar),steps=12;
   var html='';
   for(var i=0;i<=steps;i++){
     html+='<div class="atick">'+fmtT(sm+rm/steps*i)+'</div>';
@@ -657,6 +666,7 @@ function renderAvailOverview(){
   var html='';
   var slots=S.cars[c].slots;
   var hasAny=false;
+  var rm=getRaceMins(c),sm=getStartMins(c);
   slots.forEach(function(slot,si){
     if(slot.poolIdx<0)return;
     var name=getDriverName(slot.poolIdx);
@@ -688,7 +698,7 @@ function renderAvailEditors(){
     var pi=slot.poolIdx;
     var col=DRV_COLORS[pi%DRV_COLORS.length];
     var segs=getAvail(c,pi);
-    var rm=getRaceMins(),sm=getStartMins();
+    var rm=getRaceMins(c),sm=getStartMins(c);
     html+='<div class="aed">'
       +'<div class="aed-hdr">'+getDotHtml(col,8)+'<span>'+name+'</span></div>';
     segs.forEach(function(seg,segI){
@@ -715,8 +725,8 @@ function renderAvailEditors(){
 }
 
 function updSegType(c,pi,si,v){getAvail(c,pi)[si].type=v;renderAvailOverview();autoSave();}
-function updSegFrom(c,pi,si,v){getAvail(c,pi)[si].from=timeToPct(v);renderAvailOverview();autoSave();}
-function updSegTo(c,pi,si,v){getAvail(c,pi)[si].to=timeToPct(v);renderAvailOverview();autoSave();}
+function updSegFrom(c,pi,si,v){getAvail(c,pi)[si].from=timeToPct(v,c);renderAvailOverview();autoSave();}
+function updSegTo(c,pi,si,v){getAvail(c,pi)[si].to=timeToPct(v,c);renderAvailOverview();autoSave();}
 function delSeg(c,pi,si){getAvail(c,pi).splice(si,1);renderAvailEditors();renderAvailOverview();autoSave();}
 function addSeg(c,pi){getAvail(c,pi).push({type:'avail',from:0,to:100});renderAvailEditors();renderAvailOverview();autoSave();}
 
@@ -735,7 +745,7 @@ function isAvailAt(c,pi,elapsedMins){
 function buildPlan(carNum){
   var rm=getRaceMins(carNum);
   var stintM=getStintLen(carNum);
-  var pitM=parseInt(document.getElementById('pitDur').value||3);
+  var pitM=getPitDur(carNum);
   var sm=getStartMins(carNum);
   var sunriseH=parseInt(document.getElementById('sunrise').value||7);
   var sunsetH=parseInt(document.getElementById('sunset').value||21);
@@ -809,11 +819,18 @@ function buildAndShow(){
 function renderPlanCtabs(){
   var wrap=document.getElementById('planCtabs');
   var html='';
+  var firstActive=-1;
   for(var c=1;c<=4;c++){
+    if(S.cars[c].active===false)continue;
+    if(firstActive<0)firstActive=c;
     html+='<button class="ctab'+(c===activePlanCar?' on':'')+'" data-c="'+c+'" onclick="selectPlanCar('+c+',this.parentElement)">'
       +'<span class="cdot" style="background:'+CAR_COLORS[c]+'"></span>'+S.cars[c].name+'</button>';
   }
   wrap.innerHTML=html;
+  // auto-select first active car if current is inactive
+  if(S.cars[activePlanCar]&&S.cars[activePlanCar].active===false&&firstActive>0){
+    activePlanCar=firstActive;
+  }
 }
 
 function selectPlanCar(n,container){
@@ -836,14 +853,15 @@ function renderPlanView(){
   var stints=plan.filter(function(p){return!p.pit});
   var pits=plan.filter(function(p){return p.pit});
   var nights=stints.filter(function(p){return p.isNight});
-  var endTime=fmtT(getStartMins()+getRaceMins());
+  var endTime=fmtT(getStartMins(c)+getRaceMins(c));
+  var startTime=fmtT(getStartMins(c));
 
   // Stats
   document.getElementById('planStats').innerHTML=
     '<div class="sc"><div class="sv">'+stints.length+'</div><div class="sl">Stints</div></div>'+
     '<div class="sc"><div class="sv">'+pits.length+'</div><div class="sl">Boxenstopps</div></div>'+
     '<div class="sc"><div class="sv" style="color:#c084fc">'+nights.length+'</div><div class="sl">Nacht</div></div>'+
-    '<div class="sc"><div class="sv" style="font-size:20px">'+endTime+'</div><div class="sl">Rennende</div></div>';
+    '<div class="sc"><div class="sv" style="font-size:18px">'+startTime+' &rarr; '+endTime+'</div><div class="sl">Rennzeit</div></div>';
 
   renderGantt(c,plan);
   renderTable(c,plan);
@@ -852,7 +870,7 @@ function renderPlanView(){
 
 // ===================== GANTT =====================
 function renderGantt(carNum,plan){
-  var rm=getRaceMins(),sm=getStartMins();
+  var rm=getRaceMins(carNum),sm=getStartMins(carNum);
   var wrap=document.getElementById('ganttWrap');
 
   // Multi-level axis: 5min / 15min / 1h ticks
@@ -967,7 +985,7 @@ function endDrag(e){
 
   var dx=e.clientX-drag.startX;
   var newPct=Math.max(0,drag.origLeft+dx*drag.pctPerPx);
-  var rm=getRaceMins(),sm=getStartMins();
+  var rm=getRaceMins(drag.car),sm=getStartMins(drag.car);
   var newElapsed=Math.round(newPct/100*rm);
 
   var plan=S.plans[drag.car];
@@ -999,6 +1017,8 @@ function endDrag(e){
   var sunriseH=parseInt(document.getElementById('sunrise').value||7);
   var sunsetH=parseInt(document.getElementById('sunset').value||21);
   p.isNight=midH<sunriseH||midH>=sunsetH;
+  p.absStart=fmtT(sm+newElapsed);
+  p.absEnd=fmtT(sm+newElapsed+p.duration);
 
   drag.el.classList.remove('dragging');
   drag.active=false;
@@ -1157,10 +1177,10 @@ function doReset(){
   S.avail={};
   S.plans={1:[],2:[],3:[],4:[]};
   S.cars={
-    1:{name:'Fahrzeug 1',slots:[],startTime:'',raceDur:'',stintLen:'',active:true},
-    2:{name:'Fahrzeug 2',slots:[],startTime:'',raceDur:'',stintLen:'',active:true},
-    3:{name:'Fahrzeug 3',slots:[],startTime:'',raceDur:'',stintLen:'',active:true},
-    4:{name:'Fahrzeug 4',slots:[],startTime:'',raceDur:'',stintLen:'',active:true}
+    1:{name:'Fahrzeug 1',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',active:true},
+    2:{name:'Fahrzeug 2',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',active:true},
+    3:{name:'Fahrzeug 3',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',active:true},
+    4:{name:'Fahrzeug 4',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',active:true}
   };
   S.pool=savedPool;
   initSlots();
