@@ -1049,9 +1049,23 @@ function buildPlan(carNum){
 
   while(elapsed<rm){
     var remaining=rm-elapsed;
-    // Always use full stint length - only the very last stint can be shorter
-    // If remaining > 0 but < stintM, this IS the last stint
-    var dur=(remaining<=stintM)?remaining:stintM;
+    // Determine stint duration:
+    // If remaining fits in one stint: use remaining (last stint)
+    // If remaining - stintM - pitM < stintM: extend this stint to fill all (avoid tiny last stint)
+    var dur;
+    if(remaining<=stintM){
+      dur=remaining; // final stint
+    } else {
+      var afterStintAndPit=remaining-stintM-pitM;
+      if(afterStintAndPit>0&&afterStintAndPit<stintM){
+        // Next stint would be tiny - fill now instead
+        dur=remaining-pitM; // take everything except one pit
+        if(dur>stintM*1.5)dur=stintM; // don't extend too much
+      } else {
+        dur=stintM;
+      }
+    }
+    if(dur<=0)dur=remaining;
     var midH=Math.floor((sm+elapsed+dur/2)/60)%24;
     var isNight=midH<sunriseH||midH>=sunsetH;
 
