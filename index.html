@@ -138,11 +138,11 @@ select option{background:var(--s2)}
 .g-tick-line{position:absolute;top:0;bottom:0;width:1px;background:var(--border)}
 .grow{display:flex;align-items:center;margin-bottom:4px}
 .glbl{font-size:11px;width:140px;flex-shrink:0;padding-right:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;display:flex;align-items:center;gap:5px}
-.gtrack{flex:1;height:24px;background:var(--s3);border-radius:3px;position:relative;overflow:hidden;border:1px solid var(--border)}
+.gtrack{flex:1;height:30px;background:var(--s3);border-radius:3px;position:relative;overflow:hidden;border:1px solid var(--border)}
 /* unavail overlay */
 .g-unavail{position:absolute;top:0;height:100%;background:rgba(239,68,68,.1);border-left:1px solid rgba(239,68,68,.25);pointer-events:none;z-index:0}
 /* segments */
-.gseg{position:absolute;top:2px;height:20px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;overflow:hidden;white-space:nowrap;cursor:grab;user-select:none;z-index:2;transition:box-shadow .1s}
+.gseg{position:absolute;top:2px;height:20px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;overflow:hidden;white-space:nowrap;cursor:grab;user-select:none;z-index:2;transition:box-shadow .1s}
 .gseg:active{cursor:grabbing}
 .gseg.dragging{opacity:.7;box-shadow:0 0 0 2px var(--acc);z-index:100;cursor:grabbing}
 .gseg.blocked{box-shadow:0 0 0 2px var(--red) !important}
@@ -297,6 +297,7 @@ tbody tr:hover td{background:var(--s2)}
 
 <!-- PLAN -->
 <div class="panel" id="tab-plan">
+  <div style="max-width:1200px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:16px">
   <div class="ctabs" id="planCtabs" style="margin-bottom:0"></div>
   <div class="stat-grid" id="planStats"></div>
   <div class="card">
@@ -311,6 +312,7 @@ tbody tr:hover td{background:var(--s2)}
     <div class="ct">Fahrer-Verteilung</div>
     <div id="drvDist"></div>
   </div>
+  </div><!-- centering wrapper -->
 </div>
 
 </div><!-- .main -->
@@ -1138,28 +1140,27 @@ function renderGantt(carNum,plan){
     });
 
     // Driver stints
-    var stintSegs='';
-    plan.forEach(function(p,idx){
+        var stintSegs='';
+    plan.forEach(function(p,pidx){
       if(p.pit){
-        // show pit on every row subtly
         var l=(p.elapsedStart/rm*100).toFixed(3);
         var w=Math.max(0.15,(p.duration/rm*100)).toFixed(3);
-        stintSegs+='<div class="gseg pit" style="left:'+l+'%;width:'+w+'%"></div>';
+        stintSegs+='<div class="gseg pit" style="top:2px;height:26px;left:'+l+'%;width:'+w+'%"></div>';
         return;
       }
       if(p.pi!==pi)return;
       var l=(p.elapsedStart/rm*100).toFixed(3);
       var w=(p.duration/rm*100).toFixed(3);
       var nc=p.isNight?' night':'';
+      var label=parseFloat(w)>1.5?('#'+p.stintNum+' '+p.absStart):'';
       stintSegs+='<div class="gseg'+nc+'" '
-        +'data-idx="'+idx+'" data-car="'+carNum+'" data-pi="'+pi+'" '
-        +'style="left:'+l+'%;width:'+w+'%;background:'+col+'" '
-        +'title="Stint '+p.stintNum+': '+p.absStart+'-'+p.absEnd+'" '
-        +'onmousedown="startDrag(event,'+carNum+','+idx+')">'
-        +(parseFloat(w)>2?p.stintNum:'')
+        +'data-idx="'+pidx+'" '
+        +'style="top:2px;height:26px;left:'+l+'%;width:'+w+'%;background:'+col+';font-size:11px" '
+        +'title="Stint '+p.stintNum+': '+p.absStart+' - '+p.absEnd+'" '
+        +'onmousedown="startDrag(event,'+carNum+','+pidx+')">'
+        +label
         +'</div>';
     });
-
     rowsHtml+='<div class="grow" id="grow_'+carNum+'_'+pi+'">'
       +'<div class="glbl">'+getDotHtml(col,7)+'<span>'+name+'</span></div>'
       +'<div class="gtrack" data-car="'+carNum+'" data-pi="'+pi+'">'+overlays+stintSegs+'</div>'
@@ -1206,22 +1207,36 @@ function endDrag(e){
   if(!drag.active)return;
   document.removeEventListener('mousemove',onDrag);
   document.removeEventListener('mouseup',endDrag);
-
-  var dx=e.clientX-drag.startX;
-  var newPct=Math.max(0,drag.origLeft+dx*drag.pctPerPx);
-  var rm=getRaceMins(drag.car),sm=getStartMins(drag.car);
-  var newElapsed=Math.round(newPct/100*rm);
+  drag.el.classList.remove('dragging');
 
   var plan=S.plans[drag.car];
   var p=plan[drag.idx];
   var pi=p.pi;
+  var sm=getStartMins(drag.car);
+  var pitM=getPitDur(drag.car);
 
-  // Check if driver is available at new position
+  // Snap to end of previous stint:
+  // Find the previous non-pit entry
+  var prevEnd=0; // elapsed minutes
+  for(var i=drag.idx-1;i>=0;i--){
+    if(!plan[i].pit){
+      prevEnd=plan[i].elapsedEnd;
+      break;
+    } else {
+      // include pit duration
+    }
+  }
+  // Find the pit before this stint
+  var pitBefore=null;
+  if(drag.idx>0&&plan[drag.idx-1].pit) pitBefore=plan[drag.idx-1];
+
+  // Snap: this stint starts right after pit (or at prevEnd if no pit)
+  var newElapsed = pitBefore ? pitBefore.elapsedStart + pitBefore.duration : prevEnd;
+
+  // Check availability
   var avail=isAvailAt(drag.car,pi,newElapsed);
   if(avail==='unavail'){
-    // Snap back
     drag.el.style.left=drag.origLeft.toFixed(3)+'%';
-    drag.el.classList.remove('dragging');
     drag.el.classList.add('blocked');
     setTimeout(function(){drag.el.classList.remove('blocked');},400);
     showToast('Fahrer nicht verfuegbar in diesem Zeitraum!','err');
@@ -1229,28 +1244,25 @@ function endDrag(e){
     return;
   }
 
-  // Apply new position
-  var diff=newElapsed-p.elapsedStart;
+  // Apply position
   p.elapsedStart=newElapsed;
   p.elapsedEnd=newElapsed+p.duration;
   p.absStart=fmtT(sm+newElapsed);
   p.absEnd=fmtT(sm+newElapsed+p.duration);
 
-  // Update night status
   var midH=Math.floor((sm+newElapsed+p.duration/2)/60)%24;
   var sunriseH=parseInt(document.getElementById('sunrise').value||7);
   var sunsetH=parseInt(document.getElementById('sunset').value||21);
   p.isNight=midH<sunriseH||midH>=sunsetH;
-  p.absStart=fmtT(sm+newElapsed);
-  p.absEnd=fmtT(sm+newElapsed+p.duration);
 
-  drag.el.classList.remove('dragging');
+  // Cascade update all following entries
+  recalcFromIdx(drag.car, drag.idx);
+
   drag.active=false;
-
-  // Re-render
   renderGantt(drag.car,plan);
   renderTable(drag.car,plan);
   autoSave();
+  showToast('Stint '+p.stintNum+' neu positioniert','ok');
 }
 
 // ===================== ACTUAL END TIME =====================
@@ -1366,9 +1378,9 @@ function renderTable(carNum,plan){
         +nightBadge
         +'<span style="font-size:9px;color:var(--muted)">Ist-Ende:</span>'
         +'<input type="time" value="'+p.actualEnd+'" data-idx="'+idx+'" data-car="'+carNum+'" '
-        +'style="width:80px;padding:2px 5px;font-size:10px;margin:0;background:var(--s3);border:1px solid '+(p.actualEnd?'var(--acc)':'var(--border)')+';border-radius:4px;color:'+(p.actualEnd?'var(--acc)':'var(--muted)')+'" '
+        +'style="width:100px;padding:4px 8px;font-size:12px;font-weight:600;margin:0;background:var(--s3);border:2px solid '+(p.actualEnd?'var(--acc)':'var(--border)')+';border-radius:5px;color:'+(p.actualEnd?'var(--acc)':'var(--m2)')+'" '
         +'onchange="setActualEnd('+carNum+','+idx+',this.value)" '
-        +'title="Tatsaechliche Endzeit eingeben - alles danach wird neu berechnet">'
+        +'title="Tatsaechliche Endzeit - alles danach wird neu berechnet">'
         +'</span>'
         +'</div>'
 
