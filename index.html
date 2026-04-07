@@ -233,7 +233,7 @@ tbody tr:hover td{background:var(--s2)}
       <input type="hidden" id="startTime" value="07:00">
       <input type="hidden" id="raceDur" value="24">
       <input type="hidden" id="stintLen" value="60">
-      <input type="hidden" id="pitDur" value="3">
+      <input type="hidden" id="pitDur" value="90">
     </div>
     <div class="card">
       <div class="ct">Tag / Nacht</div>
@@ -406,9 +406,16 @@ function getStintLen(c){
   return parseInt(v);
 }
 function getPitDur(c){
+  // Returns pit duration in MINUTES (converted from seconds)
   var v=c?S.cars[c].pitDur:'';
-  if(!v||v===''){v=document.getElementById('pitDur').value;if(!v||v==='')v=3;}
-  return parseInt(v);
+  if(!v||v===''){v=document.getElementById('pitDur').value;if(!v||v==='')v=90;}
+  var secs=parseInt(v)||90;
+  return Math.round(secs/60*10)/10; // convert seconds to minutes
+}
+function getPitDurSecs(c){
+  var v=c?S.cars[c].pitDur:'';
+  if(!v||v===''){v=document.getElementById('pitDur').value;if(!v||v==='')v=90;}
+  return parseInt(v)||90;
 }
 function parseLapTime(str){
   // "M:SS" or "MM:SS" -> seconds
@@ -562,7 +569,7 @@ function initSetup(){
         {label:'Startzeit (Pflicht)',id:'cstart'+cn,type:'time',val:car.startTime||'',ph:'',key:'startTime'},
         {label:'Dauer (h)',id:'cdur'+cn,type:'number',val:car.raceDur||'',ph:'Global',key:'raceDur',min:0.5,max:72,step:0.5},
         {label:'Stint (Min)',id:'cstint'+cn,type:'number',val:car.stintLen||'',ph:'Global',key:'stintLen',min:5,max:300},
-        {label:'Box (Min)',id:'cpit'+cn,type:'number',val:car.pitDur||'',ph:'Global',key:'pitDur',min:1,max:60},
+        {label:'Box (Sek)',id:'cpit'+cn,type:'number',val:car.pitDur||'',ph:'z.B. 90',key:'pitDur',min:10,max:600},
         {label:'Tank (Liter)',id:'ctank'+cn,type:'number',val:car.tankSize||'',ph:'z.B. 110',key:'tankSize',min:1,max:999,step:0.5}
       ];
 
@@ -1267,7 +1274,7 @@ function renderTable(carNum,plan){
         +'<div style="width:3px;background:rgba(245,158,11,.3);border-radius:2px;flex-shrink:0;margin-right:10px"></div>'
         +'<div style="flex:1;background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.15);border-radius:6px;padding:8px 12px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">'
         +'<span style="font-size:10px;font-weight:700;color:rgba(245,158,11,.7)">BOX</span>'
-        +'<span style="font-size:10px;color:var(--muted)">Dauer: <b style="color:var(--text)">'+p.duration+' Min</b></span>'
+        +'<span style="font-size:10px;color:var(--muted)">Dauer: <b style="color:var(--text)">'+Math.round(p.duration*60)+' Sek</b></span>'
         +(p.fuelAdded>0?'<span style="font-size:10px;color:var(--muted)">Sprit: <b style="color:var(--green)">+'+p.fuelAdded+' L</b></span>':'')
         +(driverChange?'<span style="font-size:10px;color:var(--muted)"> | </span>'+driverChange:'')
         +'</div></div>';
