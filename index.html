@@ -205,8 +205,6 @@ tbody tr:hover td{background:var(--s2)}
   <div class="rinfo">
     <span class="rname" id="topName">SPR Charity 2026</span>
     <span class="pill" id="topStart">Start: 07:00</span>
-    <span class="pill" id="topDur">24h</span>
-    <span class="pill" id="topStint">Stint: 60 Min</span>
   </div>
   <div class="topbtns">
     <button class="tbtn save" onclick="saveData()">&#128190; Speichern</button>
@@ -232,14 +230,11 @@ tbody tr:hover td{background:var(--s2)}
     <div class="card">
       <div class="ct">Rennen</div>
       <div class="f"><label>Rennname</label><input type="text" id="raceName" value="SPR Charity 2026" oninput="updateTop();autoSave()"></div>
-      <div class="g2">
-        <div class="f"><label>Startzeit</label><input type="time" id="startTime" value="07:00" oninput="updateTop();autoSave()"></div>
-        <div class="f"><label>Dauer (Stunden)</label><input type="number" id="raceDur" value="24" min="0.5" max="72" step="0.5" oninput="updateTop();autoSave()"></div>
-      </div>
-      <div class="g2">
-        <div class="f"><label>Stintlaenge (Min)</label><input type="number" id="stintLen" value="60" min="5" max="300" oninput="updateTop();autoSave()"></div>
-        <div class="f"><label>Boxenstopp (Min)</label><input type="number" id="pitDur" value="3" min="1" max="60" oninput="autoSave()"></div>
-      </div>
+      <div class="f"><label>Startzeit (global)</label><input type="time" id="startTime" value="07:00" oninput="updateTop();autoSave()"></div>
+      <div style="font-size:10px;color:var(--muted2);margin-top:4px">Dauer, Stint und Box werden pro Fahrzeug eingestellt.</div>
+      <input type="hidden" id="raceDur" value="24">
+      <input type="hidden" id="stintLen" value="60">
+      <input type="hidden" id="pitDur" value="3">
     </div>
     <div class="card">
       <div class="ct">Tag / Nacht</div>
@@ -398,22 +393,22 @@ function padN(n){return String(Math.floor(n)).padStart(2,'0')}
 function fmtT(m){m=Math.round(m);return padN(Math.floor(m/60)%24)+':'+padN(m%60)}
 function getRaceMins(c){
   var v=c?S.cars[c].raceDur:'';
-  if(!v||v==='')v=document.getElementById('raceDur').value||24;
+  if(!v||v===''){v=document.getElementById('raceDur').value;if(!v||v==='')v=24;}
   return Math.round(parseFloat(v)*60);
 }
 function getStartMins(c){
   var v=c?S.cars[c].startTime:'';
-  if(!v||v==='')v=document.getElementById('startTime').value||'07:00';
+  if(!v||v===''){v=document.getElementById('startTime').value||'07:00';}
   var p=v.split(':');return parseInt(p[0])*60+parseInt(p[1]);
 }
 function getStintLen(c){
   var v=c?S.cars[c].stintLen:'';
-  if(!v||v==='')v=document.getElementById('stintLen').value||60;
+  if(!v||v===''){v=document.getElementById('stintLen').value;if(!v||v==='')v=60;}
   return parseInt(v);
 }
 function getPitDur(c){
   var v=c?S.cars[c].pitDur:'';
-  if(!v||v==='')v=document.getElementById('pitDur').value||3;
+  if(!v||v===''){v=document.getElementById('pitDur').value;if(!v||v==='')v=3;}
   return parseInt(v);
 }
 function parseLapTime(str){
@@ -454,8 +449,6 @@ function getDotHtml(color,size){size=size||7;return '<span style="display:inline
 function updateTop(){
   document.getElementById('topName').textContent=document.getElementById('raceName').value||'SPR Rennen';
   document.getElementById('topStart').textContent='Start: '+(document.getElementById('startTime').value||'07:00');
-  document.getElementById('topDur').textContent=(document.getElementById('raceDur').value||24)+'h';
-  document.getElementById('topStint').textContent='Stint: '+(document.getElementById('stintLen').value||60)+' Min';
 }
 
 // ===================== TABS =====================
@@ -516,8 +509,27 @@ function initSetup(){
       var col=CAR_COLORS[cn];
       var isActive=car.active!==false;
 
+      if(!isActive){
+        // Show collapsed inactive card
+        var card=document.createElement('div');
+        card.style.cssText='background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px 13px;opacity:0.4;display:flex;align-items:center;gap:8px;cursor:pointer';
+        var dot2=document.createElement('div');
+        dot2.style.cssText='width:8px;height:8px;border-radius:50%;background:'+col+';flex-shrink:0';
+        var lbl2=document.createElement('span');
+        lbl2.style.cssText='font-size:12px;color:var(--muted);flex:1';
+        lbl2.textContent=car.name+' (Inaktiv)';
+        var actBtn2=document.createElement('button');
+        actBtn2.textContent='Aktivieren';
+        actBtn2.style.cssText='padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--m2);font-size:9px;font-weight:700;cursor:pointer;font-family:inherit';
+        (function(cn_){actBtn2.addEventListener('click',function(){S.cars[cn_].active=true;autoSave();initSetup();});})(cn);
+        card.appendChild(dot2);
+        card.appendChild(lbl2);
+        card.appendChild(actBtn2);
+        grid.appendChild(card);
+        return;
+      }
       var card=document.createElement('div');
-      card.style.cssText='background:var(--s2);border:2px solid '+(isActive?col:'var(--border)')+';border-radius:8px;padding:13px;transition:opacity .2s;opacity:'+(isActive?'1':'0.55');
+      card.style.cssText='background:var(--s2);border:2px solid '+col+';border-radius:8px;padding:13px';
 
       // Header row
       var hdr=document.createElement('div');
@@ -1433,8 +1445,8 @@ function doReset(){
   document.getElementById('raceDur').value='24';
   document.getElementById('stintLen').value='60';
   document.getElementById('pitDur').value='3';
-  document.getElementById('sunrise').value='7';
-  document.getElementById('sunset').value='21';
+  var sunEl=document.getElementById('sunrise');if(sunEl)sunEl.value='7';
+  var sunsetEl=document.getElementById('sunset');if(sunsetEl)sunsetEl.value='21';
   updateTop();
   initSetup();
   renderPool();
