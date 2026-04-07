@@ -299,14 +299,28 @@ tbody tr:hover td{background:var(--s2)}
 <div class="panel" id="tab-plan">
   <div style="max-width:1200px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:16px">
   <div class="ctabs" id="planCtabs" style="margin-bottom:0"></div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr)) 180px;gap:10px;margin-bottom:14px">
-    <div class="sc" id="statStints"><div class="sv">-</div><div class="sl">Stints</div></div>
-    <div class="sc" id="statPits"><div class="sv">-</div><div class="sl">Boxenstopps</div></div>
-    <div class="sc" id="statNacht"><div class="sv" style="color:#c084fc">-</div><div class="sl">Nacht</div></div>
-    <div class="sc" id="statTime"><div class="sv" style="font-size:18px">-</div><div class="sl">Rennzeit</div></div>
-    <div class="sc" style="padding:10px;display:flex;flex-direction:column;align-items:center;gap:6px">
-      <canvas id="drvDonut" width="100" height="100"></canvas>
-      <div id="drvDonutLegend" style="display:flex;flex-direction:column;gap:2px;width:100%"></div>
+  <div style="background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:0">
+    <!-- stat blocks -->
+    <div style="display:flex;flex-direction:column;align-items:center;padding:0 24px;border-right:1px solid var(--border);min-width:90px">
+      <div id="statStints" style="font-size:32px;font-weight:700;color:var(--acc);line-height:1">-</div>
+      <div style="font-size:9px;color:var(--muted);letter-spacing:.1em;margin-top:3px;text-transform:uppercase">Stints</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;padding:0 24px;border-right:1px solid var(--border);min-width:90px">
+      <div id="statPits" style="font-size:32px;font-weight:700;color:var(--acc);line-height:1">-</div>
+      <div style="font-size:9px;color:var(--muted);letter-spacing:.1em;margin-top:3px;text-transform:uppercase">Boxenstopps</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;padding:0 24px;border-right:1px solid var(--border);min-width:90px">
+      <div id="statNacht" style="font-size:32px;font-weight:700;color:#c084fc;line-height:1">-</div>
+      <div style="font-size:9px;color:var(--muted);letter-spacing:.1em;margin-top:3px;text-transform:uppercase">Nacht</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;padding:0 24px;border-right:1px solid var(--border);min-width:140px">
+      <div id="statTime" style="font-size:18px;font-weight:700;color:var(--acc);line-height:1">-</div>
+      <div style="font-size:9px;color:var(--muted);letter-spacing:.1em;margin-top:3px;text-transform:uppercase">Rennzeit</div>
+    </div>
+    <!-- donut -->
+    <div style="display:flex;align-items:center;gap:16px;padding-left:24px;flex:1">
+      <canvas id="drvDonut" width="80" height="80" style="flex-shrink:0"></canvas>
+      <div id="drvDonutLegend" style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;flex:1"></div>
     </div>
   </div>
   <div class="card">
@@ -1081,10 +1095,10 @@ function selectPlanCar(n,container){
 function renderPlanView(){
   var c=activePlanCar,plan=S.plans[c];
   if(!plan||!plan.length){
-    document.getElementById('statStints').innerHTML='<div class="sv" style="color:var(--muted)">-</div><div class="sl">Stints</div>';
-    document.getElementById('statPits').innerHTML='<div class="sv" style="color:var(--muted)">-</div><div class="sl">Boxenstopps</div>';
-    document.getElementById('statNacht').innerHTML='<div class="sv" style="color:var(--muted)">-</div><div class="sl">Nacht</div>';
-    document.getElementById('statTime').innerHTML='<div class="sv" style="color:var(--muted);font-size:14px">Kein Plan</div><div class="sl">Rennzeit</div>';
+    document.getElementById('statStints').textContent='-';
+    document.getElementById('statPits').textContent='-';
+    document.getElementById('statNacht').textContent='-';
+    document.getElementById('statTime').textContent='Kein Plan';
     document.getElementById('ganttWrap').innerHTML='';
     var sc=document.getElementById('stintCards');if(sc)sc.innerHTML='';
     document.getElementById('drvDist').innerHTML='';
@@ -1098,10 +1112,10 @@ function renderPlanView(){
   var startTime=fmtT(getStartMins(c));
 
   // Stats
-  document.getElementById('statStints').innerHTML='<div class="sv">'+stints.length+'</div><div class="sl">Stints</div>';
-  document.getElementById('statPits').innerHTML='<div class="sv">'+pits.length+'</div><div class="sl">Boxenstopps</div>';
-  document.getElementById('statNacht').innerHTML='<div class="sv" style="color:#c084fc">'+nights.length+'</div><div class="sl">Nacht</div>';
-  document.getElementById('statTime').innerHTML='<div class="sv" style="font-size:16px">'+startTime+' &rarr; '+endTime+'</div><div class="sl">Rennzeit</div>';
+  document.getElementById('statStints').textContent=stints.length;
+  document.getElementById('statPits').textContent=pits.length;
+  document.getElementById('statNacht').textContent=nights.length;
+  document.getElementById('statTime').textContent=startTime+' -> '+endTime;
 
   renderGantt(c,plan);
   renderTable(c,plan);
@@ -1469,7 +1483,7 @@ function renderTable(carNum,plan){
         +'style="width:100px;padding:4px 8px;font-size:12px;font-weight:600;margin:0;background:var(--s3);border:2px solid '+(p.actualEnd?'var(--acc)':'var(--border)')+';border-radius:5px;color:'+(p.actualEnd?'var(--acc)':'var(--m2)')+'" '
         +'onchange="setActualEnd('+carNum+','+idx+',this.value)" '
         +'title="Tatsaechliche Endzeit - alles danach wird neu berechnet">'
-        +'<button onclick="deleteStint('+carNum+','+idx+')" title="Stint loeschen" '
+        +'<button onclick="confirmDeleteStint('+carNum+','+idx+')" title="Stint loeschen" '
         +'style="padding:3px 7px;border-radius:4px;border:1px solid rgba(239,68,68,.4);color:var(--red);background:transparent;cursor:pointer;font-size:10px;font-weight:700;font-family:inherit">x</button>'
         +'</span>'
         +'</div>'
@@ -1490,6 +1504,14 @@ function renderTable(carNum,plan){
 }
 
 // ===================== DELETE STINT =====================
+function confirmDeleteStint(carNum, idx){
+  var plan=S.plans[carNum];
+  if(!plan||!plan[idx])return;
+  var driverName=plan[idx].driver||'diesen Stint';
+  if(!confirm('Stint #'+plan[idx].stintNum+' von '+driverName+' loeschen?\nDer Plan wird automatisch neu aufgefuellt.')) return;
+  deleteStint(carNum, idx);
+}
+
 function deleteStint(carNum, idx){
   var plan=S.plans[carNum];
   if(!plan||!plan[idx]||plan[idx].pit)return;
@@ -1535,7 +1557,9 @@ function deleteStint(carNum, idx){
     var slotIdx=stintNum%slots.length;
     while(elap<rm){
       var remaining=Math.round(rm-elap);
-      var dur=Math.min(stintM,remaining);
+      // Always use full stint length - only last stint can be shorter
+      var dur=stintM;
+      if(remaining<=stintM) dur=remaining; // final stint fills exactly to race end
       // Add pit before new stint (if not first)
       if(plan.length>0&&!plan[plan.length-1].pit){
         var ps=fmtT(sm+elap);
@@ -1606,8 +1630,8 @@ function renderDist(carNum,plan){
   var legend=document.getElementById('drvDonutLegend');
   if(!canvas||!legend)return;
   var ctx=canvas.getContext('2d');
-  var cx=50,cy=50,r=44,rIn=26;
-  ctx.clearRect(0,0,100,100);
+  var cx=40,cy=40,r=36,rIn=22;
+  ctx.clearRect(0,0,80,80);
   var startAngle=-Math.PI/2;
   piList.forEach(function(pi){
     pi=parseInt(pi);
@@ -1629,7 +1653,7 @@ function renderDist(carNum,plan){
   ctx.fill();
   // Center text
   ctx.fillStyle='#e8e8f8';
-  ctx.font='bold 11px Segoe UI,Arial,sans-serif';
+  ctx.font='bold 12px Segoe UI,Arial,sans-serif';
   ctx.textAlign='center';
   ctx.textBaseline='middle';
   ctx.fillText(total+'x',cx,cy);
@@ -1640,13 +1664,12 @@ function renderDist(carNum,plan){
     pi=parseInt(pi);
     var name=getDriverName(pi)||('Fahrer '+(pi+1));
     var cnt=counts[pi]||0;
-    var pct=Math.round(cnt/total*100);
     var col=DRV_COLORS[pi%DRV_COLORS.length];
     var shortName=name.split(' ')[0];
-    legHtml+='<div style="display:flex;align-items:center;gap:4px;font-size:9px;color:var(--m2)">'
-      +'<div style="width:7px;height:7px;border-radius:50%;background:'+col+';flex-shrink:0"></div>'
-      +'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+shortName+'</span>'
-      +'<span style="color:var(--text);font-weight:600">'+pct+'%</span>'
+    legHtml+='<div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--m2)">'
+      +'<div style="width:8px;height:8px;border-radius:50%;background:'+col+';flex-shrink:0"></div>'
+      +'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)">'+shortName+'</span>'
+      +'<span style="color:var(--acc);font-weight:700;min-width:20px;text-align:right">'+cnt+'x</span>'
       +'</div>';
   });
   legend.innerHTML=legHtml;
