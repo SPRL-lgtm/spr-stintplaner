@@ -1,0 +1,2120 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SPR Stintplaner</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0f;--s1:#111118;--s2:#18181f;--s3:#1f1f28;
+  --border:#2a2a3a;--b2:#363648;--text:#e8e8f8;--muted:#5a5a80;--m2:#8080b0;
+  --acc:#f59e0b;--blue:#3b82f6;--green:#22c55e;--red:#ef4444;--purple:#a855f7;
+  --c1:#3b82f6;--c2:#22c55e;--c3:#f97316;--c4:#a855f7;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-serif;font-size:13px;overflow:hidden}
+.app{display:flex;flex-direction:column;height:100vh}
+
+/* TOPBAR */
+.topbar{background:var(--s1);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;gap:12px;height:48px;flex-shrink:0}
+.logo{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.lt{font-size:13px;font-weight:700;color:var(--acc);letter-spacing:.06em}
+.ls{font-size:9px;color:var(--muted);letter-spacing:.1em}
+.tdiv{width:1px;height:22px;background:var(--border);flex-shrink:0}
+.rinfo{display:flex;align-items:center;gap:8px;flex:1;overflow:hidden;flex-wrap:wrap}
+.rname{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+.pill{font-size:10px;padding:2px 8px;border-radius:20px;border:1px solid var(--border);color:var(--m2);background:var(--s2);white-space:nowrap;flex-shrink:0}
+.topbtns{display:flex;gap:6px;flex-shrink:0}
+.tbtn{padding:5px 10px;border-radius:5px;border:1px solid var(--border);font-size:10px;font-weight:600;cursor:pointer;color:var(--m2);background:transparent;font-family:inherit;transition:all .15s;white-space:nowrap}
+.tbtn:hover{border-color:var(--b2);color:var(--text)}
+.tbtn.save{border-color:var(--acc);color:var(--acc)}
+.tbtn.save:hover{background:rgba(245,158,11,.1)}
+.tbtn.reset{border-color:var(--red);color:var(--red)}
+.tbtn.reset:hover{background:rgba(239,68,68,.1)}
+.syncbox{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:5px;border:1px solid var(--border);font-size:10px;color:var(--m2);background:transparent;white-space:nowrap}
+.syncdot{width:8px;height:8px;border-radius:50%;background:var(--m2);flex-shrink:0}
+.syncdot.ok{background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,.6)}
+.syncdot.sync{background:#3b82f6;animation:pulse 1s infinite}
+.syncdot.err{background:#ef4444}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.syncuser{padding:4px 8px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text);font-family:inherit;font-size:10px;width:90px}
+.syncuser:focus{outline:none;border-color:var(--acc)}
+
+/* NAV */
+.nav{background:var(--s1);border-bottom:1px solid var(--border);display:flex;padding:0 20px;flex-shrink:0}
+.ntab{padding:9px 16px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;color:var(--muted);border:none;background:none;border-bottom:2px solid transparent;transition:all .15s}
+.ntab.active{color:var(--acc);border-bottom-color:var(--acc)}
+.ntab:hover:not(.active){color:var(--text)}
+
+/* PANELS */
+.main{flex:1;overflow:hidden;display:flex}
+.panel{display:none;flex:1;overflow-y:auto;padding:20px;flex-direction:column;gap:16px}
+.panel.active{display:flex}
+.panel::-webkit-scrollbar{width:5px}
+.panel::-webkit-scrollbar-thumb{background:var(--b2);border-radius:3px}
+
+/* CARDS */
+.card{background:var(--s1);border:1px solid var(--border);border-radius:9px;padding:18px}
+.ct{font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:7px}
+.ct::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* GRIDS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+
+/* FORM */
+.f{margin-bottom:11px}.f:last-child{margin-bottom:0}
+label{display:block;font-size:10px;color:var(--m2);margin-bottom:4px;font-weight:500}
+input[type=text],input[type=number],input[type=time],select{
+  width:100%;background:var(--s3);border:1px solid var(--border);border-radius:5px;
+  color:var(--text);font-size:11px;padding:6px 9px;outline:none;font-family:inherit;transition:border-color .15s
+}
+input:focus,select:focus{border-color:var(--acc)}
+select option{background:var(--s2)}
+
+/* POOL */
+.pool-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px}
+.pool-row{display:flex;align-items:center;gap:5px}
+.pool-num{font-size:10px;color:var(--muted);width:16px;text-align:right;flex-shrink:0;font-weight:700}
+.pdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.pool-row input{margin:0;flex:1}
+.pool-del{padding:2px 5px;border-radius:3px;border:1px solid rgba(239,68,68,.3);color:var(--red);font-size:9px;background:transparent;cursor:pointer;flex-shrink:0}
+
+/* VEH CARDS */
+.veh-grid{gap:14px}
+.vcard{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:13px}
+.vcard-hdr{display:flex;align-items:center;gap:7px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.vdot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.vcard-hdr input{margin:0;flex:1;font-weight:600;font-size:12px}
+.vslot{display:flex;align-items:center;gap:5px;margin-bottom:5px}
+.vsnum{font-size:10px;color:var(--muted);width:14px;text-align:center;flex-shrink:0}
+.vslot select{margin:0;flex:1;font-size:11px;padding:4px 6px}
+.pbtn{padding:3px 6px;border-radius:3px;border:1px solid var(--border);font-size:9px;font-weight:700;cursor:pointer;color:var(--muted);background:transparent;font-family:inherit;transition:all .15s}
+.pbtn.p-start{border-color:var(--acc);color:var(--acc);background:rgba(245,158,11,.08)}
+.pbtn.p-night{border-color:var(--purple);color:var(--purple);background:rgba(168,85,247,.08)}
+.rm-vslot{padding:2px 5px;border-radius:3px;border:1px solid rgba(239,68,68,.3);color:var(--red);font-size:9px;background:transparent;cursor:pointer}
+.add-vslot{width:100%;margin-top:6px;padding:5px;border-radius:4px;border:1px dashed var(--b2);color:var(--muted);background:transparent;cursor:pointer;font-size:10px;font-family:inherit;transition:all .15s}
+.add-vslot:hover{border-color:var(--acc);color:var(--acc)}
+
+/* CAR TABS */
+.ctabs{display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap}
+.ctab{padding:6px 14px;border-radius:7px;border:1px solid var(--border);font-size:11px;font-weight:600;cursor:pointer;color:var(--muted);background:var(--s2);transition:all .15s;display:flex;align-items:center;gap:5px}
+.ctab[data-c="1"].on{background:rgba(59,130,246,.15);border-color:var(--c1);color:var(--c1)}
+.ctab[data-c="2"].on{background:rgba(34,197,94,.15);border-color:var(--c2);color:var(--c2)}
+.ctab[data-c="3"].on{background:rgba(249,115,22,.15);border-color:var(--c3);color:var(--c3)}
+.ctab[data-c="4"].on{background:rgba(168,85,247,.15);border-color:var(--c4);color:var(--c4)}
+.ctab:hover:not(.on){border-color:var(--b2);color:var(--text)}
+.cdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+/* AVAIL */
+.avail-scroll{overflow-x:auto}
+.avail-inner{min-width:500px}
+.avail-axis{display:flex;margin-left:120px;margin-bottom:3px}
+.atick{flex:1;font-size:9px;color:var(--muted);text-align:center;border-left:1px solid var(--border);padding-left:2px}
+.arow{display:flex;align-items:center;gap:7px;margin-bottom:4px}
+.aname{font-size:11px;color:var(--text);width:113px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;display:flex;align-items:center;gap:5px}
+.atrack{flex:1;height:20px;background:var(--s3);border-radius:3px;position:relative;overflow:hidden;border:1px solid var(--border)}
+.aseg{position:absolute;top:0;height:100%}
+.aseg.avail{background:rgba(34,197,94,.75)}
+.aseg.maybe{background:rgba(245,158,11,.75)}
+.aseg.unavail{background:rgba(239,68,68,.45)}
+.aed{background:var(--s2);border:1px solid var(--border);border-radius:7px;padding:11px;margin-bottom:7px}
+.aed-hdr{display:flex;align-items:center;gap:6px;margin-bottom:7px;font-size:12px;font-weight:600}
+.aslot{display:flex;align-items:center;gap:5px;margin-bottom:4px;flex-wrap:wrap}
+.aslot select{margin:0;width:120px;font-size:10px;padding:4px 6px}
+.aslot input[type=time]{margin:0;width:86px;font-size:10px;padding:4px 6px}
+.del-btn{padding:2px 7px;border-radius:3px;border:1px solid rgba(239,68,68,.3);color:var(--red);font-size:9px;background:transparent;cursor:pointer;font-family:inherit}
+.add-ts{padding:3px 9px;border-radius:3px;border:1px solid var(--blue);color:var(--blue);font-size:10px;background:transparent;cursor:pointer;font-family:inherit;margin-top:4px}
+.legend{display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.litem{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--m2)}
+.ldot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+
+/* PLAN */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:14px}
+.sc{background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}
+.sv{font-size:26px;font-weight:700;color:var(--acc);line-height:1}
+.sl{font-size:9px;color:var(--muted);letter-spacing:.08em;margin-top:3px;text-transform:uppercase}
+
+/* GANTT */
+.gantt-scroll{overflow-x:auto;width:100%}
+.gantt-inner{min-width:600px}
+.g-hdr{display:flex;align-items:flex-end;margin-bottom:3px}
+.g-spacer{width:140px;flex-shrink:0}
+.g-ticks{flex:1;position:relative;height:20px}
+.g-tick{position:absolute;font-size:9px;color:var(--muted);transform:translateX(-50%);white-space:nowrap;bottom:0}
+.g-tick-line{position:absolute;top:0;bottom:0;width:1px;background:var(--border)}
+.grow{display:flex;align-items:center;margin-bottom:4px}
+.glbl{font-size:11px;width:140px;flex-shrink:0;padding-right:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;display:flex;align-items:center;gap:5px}
+.gtrack{flex:1;height:30px;background:var(--s3);border-radius:3px;position:relative;overflow:hidden;border:1px solid var(--border)}
+/* unavail overlay */
+.g-unavail{position:absolute;top:0;height:100%;background:rgba(239,68,68,.1);border-left:1px solid rgba(239,68,68,.25);pointer-events:none;z-index:0}
+/* segments */
+.gseg{position:absolute;top:2px;height:20px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;overflow:hidden;white-space:nowrap;cursor:grab;user-select:none;z-index:2;transition:box-shadow .1s}
+.gseg:active{cursor:grabbing}
+.gseg.dragging{opacity:.7;box-shadow:0 0 0 2px var(--acc);z-index:100;cursor:grabbing}
+.gseg.blocked{box-shadow:0 0 0 2px var(--red) !important}
+.gseg.pit{background:rgba(255,255,255,.07);border:1px solid var(--b2);cursor:default;z-index:1}
+.gseg.night{filter:brightness(.62)}
+
+/* TABLE */
+.stint-scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+thead th{background:var(--s3);color:var(--muted);padding:7px 10px;text-align:left;font-weight:700;letter-spacing:.05em;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;z-index:1}
+tbody td{padding:5px 10px;border-bottom:1px solid var(--s3);white-space:nowrap}
+tbody tr:hover td{background:var(--s2)}
+.pit-row td{color:rgba(245,158,11,.5);font-style:italic}
+.badge{font-size:9px;padding:1px 6px;border-radius:9px;font-weight:600}
+.bn{background:rgba(168,85,247,.15);color:#c084fc}
+.bd{background:rgba(245,158,11,.1);color:#fbbf24}
+
+/* DIST */
+.drow{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.dname{font-size:11px;width:130px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;display:flex;align-items:center;gap:5px}
+.dbar-w{flex:1;height:7px;background:var(--s3);border-radius:4px;overflow:hidden}
+.dbar{height:100%;border-radius:4px}
+.dcnt{font-size:11px;color:var(--m2);width:30px;text-align:right;flex-shrink:0}
+
+/* BTNS */
+.btn{padding:8px 16px;border-radius:6px;border:1px solid var(--border);font-size:11px;font-weight:700;letter-spacing:.05em;cursor:pointer;transition:all .15s;font-family:inherit;display:inline-flex;align-items:center;gap:5px}
+.btn-p{background:var(--acc);border-color:var(--acc);color:#0a0a0f}
+.btn-p:hover{opacity:.85}
+.btn-lg{padding:10px 24px;font-size:12px}
+.btn-row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:none;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:24px;min-width:300px;max-width:420px;width:90%}
+.modal h3{font-size:14px;font-weight:700;margin-bottom:8px}
+.modal p{font-size:12px;color:var(--m2);margin-bottom:18px;line-height:1.6}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end}
+.modal .btn-cancel{background:transparent;color:var(--m2)}
+.modal .btn-danger{background:var(--red);border-color:var(--red);color:#fff}
+
+/* PASSWORD */
+.pw-bg{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center}
+.pw-box{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:40px;display:flex;flex-direction:column;align-items:center;gap:14px;min-width:300px;max-width:360px;width:90%}
+.pw-logo{font-size:40px}
+.pw-title{font-size:15px;font-weight:700;color:var(--acc);letter-spacing:.06em}
+.pw-sub{font-size:10px;color:var(--muted);letter-spacing:.1em;margin-top:-6px}
+.pw-inp{width:100%;background:var(--s3);border:2px solid var(--border);border-radius:6px;color:var(--text);font-size:16px;padding:10px 14px;outline:none;font-family:inherit;text-align:center;letter-spacing:.15em;transition:border-color .15s}
+.pw-inp:focus{border-color:var(--acc)}
+.pw-inp.err{border-color:var(--red)}
+.pw-btn{width:100%;padding:10px;border-radius:6px;background:var(--acc);border:none;color:#0a0a0f;font-size:12px;font-weight:700;letter-spacing:.06em;cursor:pointer;font-family:inherit}
+.pw-btn:hover{opacity:.85}
+.pw-err{font-size:11px;color:var(--red);min-height:16px;font-weight:600}
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--s1);border:1px solid var(--border);border-radius:7px;padding:10px 16px;font-size:11px;font-weight:600;z-index:2000;transform:translateY(60px);opacity:0;transition:all .25s;pointer-events:none}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.ok{border-color:rgba(34,197,94,.5);color:var(--green)}
+.toast.err{border-color:rgba(239,68,68,.5);color:var(--red)}
+
+</style>
+</head>
+<body>
+<!-- PASSWORD SCREEN -->
+<div class="pw-bg" id="pwScreen">
+  <div class="pw-box">
+    <div class="pw-logo">&#127022;</div>
+    <div class="pw-title">SPR STINTPLANER</div>
+    <div class="pw-sub">SNAIL PACE RACING</div>
+    <input class="pw-inp" type="password" id="pwInp" placeholder="Passwort" onkeydown="if(event.key==='Enter')checkPw()">
+    <div class="pw-err" id="pwErr"></div>
+    <button class="pw-btn" onclick="checkPw()">ANMELDEN</button>
+  </div>
+</div>
+
+<div class="app">
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo">
+    <span style="font-size:18px">&#127022;</span>
+    <div><div class="lt">SPR STINTPLANER</div><div class="ls">SNAIL PACE RACING</div></div>
+  </div>
+  <div class="tdiv"></div>
+  <div class="rinfo">
+    <span class="rname" id="topName">SPR Charity 2026</span>
+  </div>
+  <div class="topbtns">
+    <input type="text" id="syncUser" class="syncuser" placeholder="Dein Name" maxlength="20" oninput="saveSyncUser()">
+    <div class="syncbox" id="syncBox" title="Cloud-Synchronisation">
+      <div class="syncdot" id="syncDot"></div>
+      <span id="syncTxt">Verbinde...</span>
+    </div>
+    <button class="tbtn save" onclick="saveData()">&#128190; Speichern</button>
+    <button class="tbtn" onclick="exportJSON()">&#8599; Export</button>
+    <label class="tbtn" style="cursor:pointer">&#8601; Import<input type="file" accept=".json" style="display:none" onchange="importJSON(event)"></label>
+    <button class="tbtn reset" onclick="showReset()">&#8635; Reset</button>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav">
+  <button class="ntab active" onclick="goTab('setup',this)">Setup</button>
+  <button class="ntab" onclick="goTab('fahrer',this)">Fahrer</button>
+  <button class="ntab" onclick="goTab('verfuegbar',this)">Verfuegbarkeit</button>
+  <button class="ntab" onclick="goTab('plan',this)">Stintplan</button>
+</div>
+
+<div class="main">
+
+<!-- SETUP -->
+<div class="panel active" id="tab-setup">
+  <div class="g2">
+    <div class="card">
+      <div class="ct">Rennen</div>
+      <div class="f"><label>Rennname</label><input type="text" id="raceName" value="SPR Charity 2026" oninput="updateTop();autoSave()"></div>
+      <div style="font-size:10px;color:var(--muted2);margin-top:4px">Startzeit, Dauer, Stint und Box werden pro Fahrzeug eingestellt.</div>
+      <input type="hidden" id="startTime" value="07:00">
+      <input type="hidden" id="raceDur" value="24">
+      <input type="hidden" id="stintLen" value="60">
+      <input type="hidden" id="pitDur" value="90">
+    </div>
+    <div class="card">
+      <div class="ct">Tag / Nacht</div>
+      <div class="g2">
+        <div class="f"><label>Sonnenaufgang (Uhr)</label><input type="number" id="sunrise" value="7" min="0" max="12" oninput="autoSave()"></div>
+        <div class="f"><label>Sonnenuntergang (Uhr)</label><input type="number" id="sunset" value="21" min="12" max="24" oninput="autoSave()"></div>
+      </div>
+      <div style="font-size:10px;color:var(--m2);line-height:1.7;margin-top:6px">Stints nachts werden als <span style="color:#c084fc;font-weight:700">Nachtstints</span> markiert und bei der Planung beruecksichtigt.</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ct">Fahrzeuge (individuelle Einstellungen)</div>
+    <div style="font-size:10px;color:var(--m2);margin-bottom:14px">Startzeit ist Pflicht. Stint/Box/Dauer leer = Standard wird verwendet.</div>
+    <div id="carNameInputs"></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-p btn-lg" onclick="goTab('fahrer',document.querySelectorAll('.ntab')[1])">Weiter: Fahrer &rarr;</button>
+  </div>
+</div>
+
+<!-- FAHRER -->
+<div class="panel" id="tab-fahrer">
+  <div class="card">
+    <div class="ct">Fahrerpool</div>
+    <div class="pool-grid" id="poolGrid"></div>
+    <button style="margin-top:10px;padding:5px 12px;border-radius:4px;border:1px dashed var(--b2);color:var(--m2);background:transparent;cursor:pointer;font-size:10px;font-family:inherit" onclick="addPoolDriver()">+ Fahrer hinzufuegen</button>
+  </div>
+  <div class="card">
+    <div class="ct">Fahrerzuweisung pro Fahrzeug</div>
+    <div class="veh-grid" id="vehGrid"></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-p btn-lg" onclick="goTab('verfuegbar',document.querySelectorAll('.ntab')[2])">Weiter: Verfuegbarkeit &rarr;</button>
+  </div>
+</div>
+
+<!-- VERFUEGBARKEIT -->
+<div class="panel" id="tab-verfuegbar">
+  <div class="card">
+    <div class="ct">Fahrzeug</div>
+    <div class="ctabs" id="availCtabs"></div>
+    <div class="ct" style="margin-top:2px">Verfuegbarkeit</div>
+    <div class="legend">
+      <div class="litem"><div class="ldot" style="background:rgba(34,197,94,.75)"></div>Verfuegbar</div>
+      <div class="litem"><div class="ldot" style="background:rgba(245,158,11,.75)"></div>Vielleicht</div>
+      <div class="litem"><div class="ldot" style="background:rgba(239,68,68,.45)"></div>Nicht verfuegbar</div>
+    </div>
+    <div class="avail-scroll"><div class="avail-inner">
+      <div class="avail-axis" id="availAxis"></div>
+      <div id="availOverview"></div>
+    </div></div>
+  </div>
+  <div class="card">
+    <div class="ct">Zeitraeume bearbeiten</div>
+    <div id="availEditors"></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-p btn-lg" onclick="buildAndShow()">Plan berechnen &rarr;</button>
+  </div>
+</div>
+
+<!-- PLAN -->
+<div class="panel" id="tab-plan">
+  <div style="max-width:1560px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:16px">
+  <div class="ctabs" id="planCtabs" style="margin-bottom:0"></div>
+  <div style="background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:0">
+    <!-- stat blocks -->
+    <div style="display:flex;flex-direction:column;align-items:center;padding:0 24px;border-right:1px solid var(--border);min-width:90px">
+      <div id="statStints" style="font-size:32px;font-weight:700;color:var(--acc);line-height:1">-</div>
+      <div style="font-size:9px;color:var(--muted);letter-spacing:.1em;margin-top:3px;text-transform:uppercase">Stints</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;padding:0 24px;border-right:1px solid var(--border);min-width:90px">
+      <div id="statPits" style="font-size:32px;font-weight:700;color:var(--acc);line-height:1">-</div>
+      <div style="font-size:9px;color:var(--muted);letter-spacing:.1em;margin-top:3px;text-transform:uppercase">Boxenstopps</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;padding:0 24px;border-right:1px solid var(--border);min-width:90px">
+      <div id="statNacht" style="font-size:32px;font-weight:700;color:#c084fc;line-height:1">-</div>
+      <div style="font-size:9px;color:var(--muted);letter-spacing:.1em;margin-top:3px;text-transform:uppercase">Nacht</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;padding:0 24px;border-right:1px solid var(--border);min-width:140px">
+      <div id="statTime" style="font-size:18px;font-weight:700;color:var(--acc);line-height:1">-</div>
+      <div style="font-size:9px;color:var(--muted);letter-spacing:.1em;margin-top:3px;text-transform:uppercase">Rennzeit</div>
+    </div>
+    <!-- donut -->
+    <div style="display:flex;align-items:center;gap:16px;padding-left:24px;flex:1">
+      <canvas id="drvDonut" width="80" height="80" style="flex-shrink:0"></canvas>
+      <div id="drvDonutLegend" style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;flex:1"></div>
+    </div>
+    <!-- recalc button -->
+    <div style="padding-left:20px;flex-shrink:0">
+      <button onclick="softRebuild()" style="padding:8px 16px;border-radius:6px;background:var(--acc);border:none;color:#0a0a0f;font-size:11px;font-weight:700;letter-spacing:.05em;cursor:pointer;font-family:inherit;white-space:nowrap">Neu berechnen</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ct">Race Timeline <span style="font-size:9px;color:var(--m2);font-weight:400;text-transform:none;letter-spacing:0">&nbsp;Stints per Drag &amp; Drop verschieben</span></div>
+    <div class="gantt-scroll"><div class="gantt-inner" id="ganttWrap"></div></div>
+  </div>
+  <div class="card">
+    <div class="ct">Stintplan</div>
+    <div id="stintCards"></div>
+  </div>
+  <div style="display:none" id="drvDist"></div>
+  </div><!-- centering wrapper -->
+</div>
+
+</div><!-- .main -->
+</div><!-- .app -->
+
+
+
+<!-- RESET MODAL -->
+<div class="modal-bg" id="resetModal">
+  <div class="modal">
+    <h3>Zuruecksetzen</h3>
+    <p>Was soll zurueckgesetzt werden?</p>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border-radius:6px;border:1px solid var(--border);background:var(--s2)">
+        <input type="radio" name="resetMode" value="all" checked style="width:auto;accent-color:var(--acc)">
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--text)">Alles zuruecksetzen</div>
+          <div style="font-size:10px;color:var(--muted)">Fahrerpool, Fahrzeuge, Verfuegbarkeit und Plan werden geloescht</div>
+        </div>
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border-radius:6px;border:1px solid var(--border);background:var(--s2)">
+        <input type="radio" name="resetMode" value="keep_pool" style="width:auto;accent-color:var(--acc)">
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--text)">Fahrerpool behalten</div>
+          <div style="font-size:10px;color:var(--muted)">Fahrernamen bleiben erhalten, alles andere wird zurueckgesetzt</div>
+        </div>
+      </label>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-cancel" onclick="closeReset()">Abbrechen</button>
+      <button class="btn btn-danger" onclick="doReset()">Zuruecksetzen</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+
+// ===================== PASSWORD =====================
+var PW_HASH='9582b504fec0a9c1b2c9b1812be3b1aa08732622bced0cb1f45dd013571f50dc';
+async function sha256(str){
+  var buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0')}).join('');
+}
+async function checkPw(){
+  var val=document.getElementById('pwInp').value.trim();
+  if(!val)return;
+  try{
+    var h=await sha256(val);
+    if(h===PW_HASH){
+      sessionStorage.setItem('spr_ok','1');
+      document.getElementById('pwScreen').style.display='none';
+      if(typeof cloudPull==='function')cloudPull(true);
+    } else {
+      var inp=document.getElementById('pwInp');
+      inp.classList.add('err');
+      document.getElementById('pwErr').textContent='Falsches Passwort';
+      setTimeout(function(){inp.classList.remove('err');inp.value='';inp.focus();},700);
+    }
+  }catch(e){
+    // Fallback for non-HTTPS
+    if(val==='Pace'){
+      sessionStorage.setItem('spr_ok','1');
+      document.getElementById('pwScreen').style.display='none';
+      if(typeof cloudPull==='function')cloudPull(true);
+    } else {
+      document.getElementById('pwErr').textContent='Falsches Passwort';
+    }
+  }
+}
+function checkAuth(){
+  if(sessionStorage.getItem('spr_ok')==='1'){
+    document.getElementById('pwScreen').style.display='none';
+  }
+}
+
+// ===================== COLORS =====================
+var CAR_COLORS = ['','#3b82f6','#22c55e','#f97316','#a855f7'];
+var DRV_COLORS = ['#3b82f6','#22c55e','#f97316','#a855f7','#ec4899','#06b6d4','#84cc16','#f43f5e','#8b5cf6','#14b8a6','#fb923c','#a3e635'];
+
+// ===================== STATE =====================
+var S = {
+  pool: ['','','','',''],
+  cars: {
+    1:{name:'Fahrzeug 1',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',tankSize:'',active:true},
+    2:{name:'Fahrzeug 2',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',tankSize:'',active:true},
+    3:{name:'Fahrzeug 3',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',tankSize:'',active:true},
+    4:{name:'Fahrzeug 4',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',tankSize:'',active:true}
+  },
+  avail: {},
+  plans: {1:[],2:[],3:[],4:[]}
+};
+
+// slot = {poolIdx: number, prefStart: bool, prefNight: bool}
+function initSlots() {
+  for (var c = 1; c <= 4; c++) {
+    if (!S.cars[c].slots || S.cars[c].slots.length === 0) {
+      S.cars[c].slots = [];
+      for (var i = 0; i < 5; i++) S.cars[c].slots.push({poolIdx:-1, prefStart:false, prefNight:false, lapTime:'', fuelPerLap:''});
+    }
+  }
+}
+
+function getAvail(carNum, poolIdx) {
+  var key = carNum + '_' + poolIdx;
+  if (!S.avail[key]) S.avail[key] = [{type:'avail', from:0, to:100}];
+  return S.avail[key];
+}
+
+var activeAvailCar = 1;
+var activePlanCar = 1;
+
+// ===================== HELPERS =====================
+function padN(n){return String(Math.floor(n)).padStart(2,'0')}
+function fmtT(m){m=Math.round(m);return padN(Math.floor(m/60)%24)+':'+padN(m%60)}
+function getRaceMins(c){
+  var v=c?S.cars[c].raceDur:'';
+  if(!v||v===''){v=document.getElementById('raceDur').value;if(!v||v==='')v=24;}
+  return Math.round(parseFloat(v)*60);
+}
+function getStartMins(c){
+  var v=(c&&S.cars[c])?S.cars[c].startTime:'';
+  if(!v||v==='')v='07:00'; // default fallback
+  var p=v.split(':');return parseInt(p[0])*60+parseInt(p[1]);
+}
+function getStintLen(c){
+  var v=c?S.cars[c].stintLen:'';
+  if(!v||v===''){v=document.getElementById('stintLen').value;if(!v||v==='')v=60;}
+  return parseInt(v);
+}
+function getPitDur(c){
+  // Returns pit duration in MINUTES (converted from seconds)
+  var v=c?S.cars[c].pitDur:'';
+  if(!v||v===''){v=document.getElementById('pitDur').value;if(!v||v==='')v=90;}
+  var secs=parseInt(v)||90;
+  return Math.round(secs/60*10)/10; // convert seconds to minutes
+}
+function getPitDurSecs(c){
+  var v=c?S.cars[c].pitDur:'';
+  if(!v||v===''){v=document.getElementById('pitDur').value;if(!v||v==='')v=90;}
+  return parseInt(v)||90;
+}
+function parseLapTime(str){
+  // "M:SS" or "MM:SS" -> seconds
+  if(!str||!str.trim())return 0;
+  var p=str.trim().split(':');
+  if(p.length===2)return parseInt(p[0])*60+parseFloat(p[1]);
+  return parseFloat(p[0])*60;
+}
+function calcStintLaps(slot){
+  var lt=parseLapTime(slot.lapTime);
+  if(!lt)return 0;
+  return lt; // returns lap duration in seconds
+}
+function calcFuelPerStint(slot, laps){
+  var fl=parseFloat(slot.fuelPerLap)||0;
+  return Math.round(fl*laps*10)/10;
+}
+function getTankSize(c){
+  var v=S.cars[c].tankSize;
+  return parseFloat(v)||0;
+}
+function timeToPct(t,c){
+  var rm=getRaceMins(c),sm=getStartMins(c),p=t.split(':');
+  var m=parseInt(p[0])*60+parseInt(p[1]);
+  if(m<sm)m+=24*60;
+  return Math.max(0,Math.min(100,(m-sm)/rm*100));
+}
+function pctToMins(pct,c){return getStartMins(c)+getRaceMins(c)*pct/100}
+function getCarColor(n){return CAR_COLORS[n]||'#888'}
+function getDriverName(poolIdx){
+  if(poolIdx<0||poolIdx>=S.pool.length)return '';
+  return (S.pool[poolIdx]&&S.pool[poolIdx].trim())?S.pool[poolIdx].trim():'';
+}
+function getDotHtml(color,size){size=size||7;return '<span style="display:inline-block;width:'+size+'px;height:'+size+'px;border-radius:50%;background:'+color+';flex-shrink:0"></span>'}
+
+// ===================== TOPBAR =====================
+function updateTop(){
+  document.getElementById('topName').textContent=document.getElementById('raceName').value||'SPR Rennen';
+}
+
+// ===================== TABS =====================
+function goTab(id,btn){
+  syncAll();
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active')});
+  document.querySelectorAll('.ntab').forEach(function(t){t.classList.remove('active')});
+  document.getElementById('tab-'+id).classList.add('active');
+  if(btn)btn.classList.add('active');
+  if(id==='fahrer'){renderPool();renderVehGrid();}
+  if(id==='verfuegbar'){renderAvailCtabs();renderAvailAxis();renderAvailOverview();renderAvailEditors();}
+  if(id==='plan'){renderPlanCtabs();renderPlanView();}
+}
+
+// ===================== SYNC =====================
+function syncAll(){
+  for(var c=1;c<=4;c++){
+    var ni=document.getElementById('cname'+c);
+    if(ni)S.cars[c].name=ni.value||('Fahrzeug '+c);
+    var cs=document.getElementById('cstart'+c);
+    if(cs)S.cars[c].startTime=cs.value;
+    var cd=document.getElementById('cdur'+c);
+    if(cd)S.cars[c].raceDur=cd.value;
+    var cst=document.getElementById('cstint'+c);
+    if(cst)S.cars[c].stintLen=cst.value;
+    var cp=document.getElementById('cpit'+c);
+    if(cp)S.cars[c].pitDur=cp.value;
+    var ct=document.getElementById('ctank'+c);
+    if(ct)S.cars[c].tankSize=ct.value;
+    var ca=document.getElementById('cactive'+c);
+    if(ca)S.cars[c].active=(ca.value=='1');
+  }
+  S.pool.forEach(function(_,i){
+    var inp=document.getElementById('pool_'+i);
+    if(inp)S.pool[i]=inp.value;
+  });
+  for(var c=1;c<=4;c++){
+    S.cars[c].slots.forEach(function(slot,si){
+      var sel=document.getElementById('vslot_'+c+'_'+si);
+      if(sel)slot.poolIdx=parseInt(sel.value);
+      var lt=document.getElementById('vlt_'+c+'_'+si);
+      if(lt)slot.lapTime=lt.value;
+      var fl=document.getElementById('vfl_'+c+'_'+si);
+      if(fl)slot.fuelPerLap=parseFloat(fl.value)||0;
+    });
+  }
+}
+
+// ===================== SETUP =====================
+function initSetup(){
+  var wrap=document.getElementById('carNameInputs');
+  wrap.innerHTML='';
+  var grid=document.createElement('div');
+  grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px';
+  for(var c=1;c<=4;c++){
+    (function(cn){
+      var car=S.cars[cn];
+      var col=CAR_COLORS[cn];
+      var isActive=car.active!==false;
+
+      if(!isActive){
+        // Show collapsed inactive card
+        var card=document.createElement('div');
+        card.style.cssText='background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px 13px;opacity:0.4;display:flex;align-items:center;gap:8px;cursor:pointer';
+        var dot2=document.createElement('div');
+        dot2.style.cssText='width:8px;height:8px;border-radius:50%;background:'+col+';flex-shrink:0';
+        var lbl2=document.createElement('span');
+        lbl2.style.cssText='font-size:12px;color:var(--muted);flex:1';
+        lbl2.textContent=car.name+' (Inaktiv)';
+        var actBtn2=document.createElement('button');
+        actBtn2.textContent='Aktivieren';
+        actBtn2.style.cssText='padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--m2);font-size:9px;font-weight:700;cursor:pointer;font-family:inherit';
+        (function(cn_){actBtn2.addEventListener('click',function(){S.cars[cn_].active=true;autoSave();initSetup();});})(cn);
+        card.appendChild(dot2);
+        card.appendChild(lbl2);
+        card.appendChild(actBtn2);
+        grid.appendChild(card);
+        return;
+      }
+      var card=document.createElement('div');
+      card.style.cssText='background:var(--s2);border:2px solid '+col+';border-radius:8px;padding:13px';
+
+      // Header row
+      var hdr=document.createElement('div');
+      hdr.style.cssText='display:flex;align-items:center;gap:7px;margin-bottom:12px;padding-bottom:9px;border-bottom:1px solid var(--border)';
+
+      var dot=document.createElement('div');
+      dot.style.cssText='width:9px;height:9px;border-radius:50%;background:'+col+';flex-shrink:0';
+
+      var nameInp=document.createElement('input');
+      nameInp.type='text';
+      nameInp.id='cname'+cn;
+      nameInp.value=car.name;
+      nameInp.style.cssText='margin:0;flex:1;font-weight:700;font-size:12px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);padding:2px 0;outline:none;font-family:inherit';
+      nameInp.addEventListener('input',function(){S.cars[cn].name=this.value;updateVehTabs();autoSave();});
+
+      var activeBtn=document.createElement('button');
+      activeBtn.textContent=isActive?'Aktiv':'Inaktiv';
+      activeBtn.style.cssText='padding:3px 8px;border-radius:4px;border:1px solid '+(isActive?col:'var(--border)')+';background:'+(isActive?'rgba(0,0,0,.3)':'transparent')+';color:'+(isActive?col:'var(--muted)')+';font-size:9px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0';
+      activeBtn.addEventListener('click',function(){
+        S.cars[cn].active=!S.cars[cn].active;
+        autoSave();
+        initSetup();
+      });
+
+      hdr.appendChild(dot);
+      hdr.appendChild(nameInp);
+      hdr.appendChild(activeBtn);
+      card.appendChild(hdr);
+
+      // Fields grid
+      var fields=[
+        {label:'Startzeit (Pflicht)',id:'cstart'+cn,type:'time',val:car.startTime||'',ph:'',key:'startTime'},
+        {label:'Dauer (h)',id:'cdur'+cn,type:'number',val:car.raceDur||'',ph:'Global',key:'raceDur',min:0.5,max:72,step:0.5},
+        {label:'Stint (Min)',id:'cstint'+cn,type:'number',val:car.stintLen||'',ph:'Global',key:'stintLen',min:5,max:300},
+        {label:'Box (Sek)',id:'cpit'+cn,type:'number',val:car.pitDur||'',ph:'z.B. 90',key:'pitDur',min:10,max:600},
+        {label:'Tank (Liter)',id:'ctank'+cn,type:'number',val:car.tankSize||'',ph:'z.B. 110',key:'tankSize',min:1,max:999,step:0.5}
+      ];
+
+      var fg=document.createElement('div');
+      fg.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px';
+
+      fields.forEach(function(f){
+        var wrap2=document.createElement('div');
+        wrap2.className='f';
+        var lbl=document.createElement('label');
+        lbl.textContent=f.label;
+        var inp=document.createElement('input');
+        inp.type=f.type;
+        inp.id=f.id;
+        inp.value=f.val;
+        inp.placeholder=f.ph||'';
+        inp.style.margin='0';
+        if(f.min!==undefined)inp.min=f.min;
+        if(f.max!==undefined)inp.max=f.max;
+        if(f.step!==undefined)inp.step=f.step;
+        (function(key){
+          inp.addEventListener('input',function(){S.cars[cn][key]=this.value;autoSave();});
+        })(f.key);
+        wrap2.appendChild(lbl);
+        wrap2.appendChild(inp);
+        fg.appendChild(wrap2);
+      });
+
+      card.appendChild(fg);
+
+      var hint=document.createElement('div');
+      hint.style.cssText='margin-top:8px;font-size:9px;color:var(--muted)';
+      hint.textContent='Leer = globale Einstellung';
+      card.appendChild(hint);
+
+      grid.appendChild(card);
+    })(c);
+  }
+  wrap.appendChild(grid);
+}
+
+function updateVehTabs(){
+  // refresh car tab labels everywhere
+  document.querySelectorAll('.ctab').forEach(function(t){
+    var c=parseInt(t.dataset.c);
+    if(c) t.lastChild.textContent=S.cars[c].name;
+  });
+}
+
+// ===================== POOL =====================
+function renderPool(){
+  var wrap=document.getElementById('poolGrid');
+  var html='';
+  S.pool.forEach(function(name,i){
+    var col=DRV_COLORS[i%DRV_COLORS.length];
+    html+='<div class="pool-row">'
+      +'<span class="pool-num">'+getDotHtml(col,7)+'</span>'
+      +'<input type="text" id="pool_'+i+'" value="'+name+'" placeholder="Fahrer '+(i+1)+'" oninput="S.pool['+i+']=this.value;refreshVehDropdowns();autoSave()">'
+      +'<button class="pool-del" onclick="removePoolDriver('+i+')">x</button>'
+      +'</div>';
+  });
+  wrap.innerHTML=html;
+}
+
+function addPoolDriver(){
+  syncAll();
+  S.pool.push('');
+  // add slot to each car
+  for(var c=1;c<=4;c++) S.cars[c].slots.push({poolIdx:-1,prefStart:false,prefNight:false});
+  renderPool();
+  renderVehGrid();
+  autoSave();
+}
+
+function removePoolDriver(idx){
+  syncAll();
+  S.pool.splice(idx,1);
+  // update slots: shift poolIdx
+  for(var c=1;c<=4;c++){
+    S.cars[c].slots.forEach(function(slot){
+      if(slot.poolIdx===idx) slot.poolIdx=-1;
+      else if(slot.poolIdx>idx) slot.poolIdx--;
+    });
+    // remove corresponding slot entry if needed
+    S.cars[c].slots = S.cars[c].slots.slice(0, S.pool.length);
+    while(S.cars[c].slots.length < S.pool.length) S.cars[c].slots.push({poolIdx:-1,prefStart:false,prefNight:false});
+  }
+  // remove avail entries for this poolIdx
+  Object.keys(S.avail).forEach(function(k){
+    var parts=k.split('_');
+    if(parseInt(parts[1])===idx) delete S.avail[k];
+  });
+  renderPool();
+  renderVehGrid();
+  autoSave();
+}
+
+function refreshVehDropdowns(){
+  for(var c=1;c<=4;c++){
+    S.cars[c].slots.forEach(function(slot,si){
+      var sel=document.getElementById('vslot_'+c+'_'+si);
+      if(!sel)return;
+      var cur=sel.value;
+      sel.innerHTML=buildPoolOptions(slot.poolIdx);
+    });
+  }
+}
+
+function buildPoolOptions(selected){
+  var html='<option value="-1">-- Kein Fahrer --</option>';
+  S.pool.forEach(function(name,i){
+    var display=name.trim()?name.trim():('Fahrer '+(i+1));
+    html+='<option value="'+i+'"'+(selected===i?' selected':'')+'>'+display+'</option>';
+  });
+  return html;
+}
+
+// ===================== VEH GRID =====================
+function renderVehGrid(){
+  var wrap=document.getElementById('vehGrid');
+  wrap.innerHTML='';
+  // Count active cars for grid sizing
+  var activeCnt=0;
+  for(var c=1;c<=4;c++){if(S.cars[c].active!==false)activeCnt++;}
+  var minW=activeCnt<=2?'340px':activeCnt===3?'280px':'230px';
+  var grid=document.createElement('div');
+  grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax('+minW+',1fr));gap:14px';
+  for(var c=1;c<=4;c++){
+    (function(cn){
+      if(S.cars[cn].active===false)return; // skip inactive
+      var col=CAR_COLORS[cn];
+      var card=document.createElement('div');
+      card.className='vcard';
+
+      // Car header
+      var hdr=document.createElement('div');
+      hdr.className='vcard-hdr';
+      var dot=document.createElement('div');
+      dot.className='vdot';
+      dot.style.background=col;
+      var nameInp=document.createElement('input');
+      nameInp.type='text';
+      nameInp.id='cname'+cn;
+      nameInp.value=S.cars[cn].name;
+      nameInp.addEventListener('input',function(){S.cars[cn].name=this.value;updateVehTabs();autoSave();});
+      hdr.appendChild(dot);
+      hdr.appendChild(nameInp);
+      card.appendChild(hdr);
+
+      // Slots
+      S.cars[cn].slots.forEach(function(slot,si){
+        var slotDiv=document.createElement('div');
+        slotDiv.style.cssText='margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)';
+
+        // Row 1: number + dropdown + pref btns + remove
+        var row1=document.createElement('div');
+        row1.className='vslot';
+        row1.style.marginBottom='5px';
+
+        var num=document.createElement('span');
+        num.className='vsnum';
+        num.textContent=si+1;
+
+        var sel=document.createElement('select');
+        sel.id='vslot_'+cn+'_'+si;
+        sel.style.cssText='margin:0;flex:1';
+        sel.innerHTML=buildPoolOptions(slot.poolIdx);
+        (function(s){sel.addEventListener('change',function(){S.cars[cn].slots[s].poolIdx=parseInt(this.value);autoSave();});})(si);
+
+        var btnS=document.createElement('button');
+        btnS.className='pbtn'+(slot.prefStart?' p-start':'');
+        btnS.textContent='S';
+        btnS.title='Startstint bevorzugt';
+        (function(s,b){b.addEventListener('click',function(){S.cars[cn].slots[s].prefStart=!S.cars[cn].slots[s].prefStart;b.classList.toggle('p-start',S.cars[cn].slots[s].prefStart);autoSave();});})(si,btnS);
+
+        var btnN=document.createElement('button');
+        btnN.className='pbtn'+(slot.prefNight?' p-night':'');
+        btnN.textContent='N';
+        btnN.title='Nachtstints bevorzugt';
+        (function(s,b){b.addEventListener('click',function(){S.cars[cn].slots[s].prefNight=!S.cars[cn].slots[s].prefNight;b.classList.toggle('p-night',S.cars[cn].slots[s].prefNight);autoSave();});})(si,btnN);
+
+        var btnRm=document.createElement('button');
+        btnRm.className='rm-vslot';
+        btnRm.textContent='x';
+        (function(s){btnRm.addEventListener('click',function(){removeVSlot(cn,s);});})(si);
+
+        row1.appendChild(num);
+        row1.appendChild(sel);
+        row1.appendChild(btnS);
+        row1.appendChild(btnN);
+        row1.appendChild(btnRm);
+        slotDiv.appendChild(row1);
+
+        // Row 2: lapTime + fuelPerLap
+        var row2=document.createElement('div');
+        row2.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-left:18px';
+
+        var ltWrap=document.createElement('div');
+        var ltLbl=document.createElement('label');
+        ltLbl.textContent='Rundenzeit (M:SS)';
+        ltLbl.style.cssText='font-size:9px;color:var(--muted)';
+        var ltInp=document.createElement('input');
+        ltInp.type='text';
+        ltInp.id='vlt_'+cn+'_'+si;
+        ltInp.value=slot.lapTime||'';
+        ltInp.placeholder='z.B. 8:30';
+        ltInp.style.cssText='margin:0;font-size:10px;padding:3px 6px';
+        (function(s){ltInp.addEventListener('input',function(){S.cars[cn].slots[s].lapTime=this.value;autoSave();});})(si);
+        ltWrap.appendChild(ltLbl);
+        ltWrap.appendChild(ltInp);
+
+        var flWrap=document.createElement('div');
+        var flLbl=document.createElement('label');
+        flLbl.textContent='Verbrauch (L/Rd)';
+        flLbl.style.cssText='font-size:9px;color:var(--muted)';
+        var flInp=document.createElement('input');
+        flInp.type='number';
+        flInp.id='vfl_'+cn+'_'+si;
+        flInp.value=slot.fuelPerLap||'';
+        flInp.placeholder='z.B. 2.8';
+        flInp.min='0';
+        flInp.step='0.1';
+        flInp.style.cssText='margin:0;font-size:10px;padding:3px 6px';
+        (function(s){flInp.addEventListener('input',function(){S.cars[cn].slots[s].fuelPerLap=parseFloat(this.value)||0;autoSave();});})(si);
+        flWrap.appendChild(flLbl);
+        flWrap.appendChild(flInp);
+
+        row2.appendChild(ltWrap);
+        row2.appendChild(flWrap);
+        slotDiv.appendChild(row2);
+        card.appendChild(slotDiv);
+      });
+
+      var addBtn=document.createElement('button');
+      addBtn.className='add-vslot';
+      addBtn.textContent='+ Fahrer-Slot hinzufuegen';
+      (function(cn_){addBtn.addEventListener('click',function(){addVSlot(cn_);});})(cn);
+      card.appendChild(addBtn);
+      grid.appendChild(card);
+    })(c);
+  }
+  wrap.appendChild(grid);
+}
+
+
+function toggleSlotPref(c,si,key,btn){
+  S.cars[c].slots[si][key]=!S.cars[c].slots[si][key];
+  btn.classList.toggle(key==='prefStart'?'p-start':'p-night', S.cars[c].slots[si][key]);
+  autoSave();
+}
+
+function addVSlot(c){
+  S.cars[c].slots.push({poolIdx:-1,prefStart:false,prefNight:false});
+  renderVehGrid();
+  autoSave();
+}
+
+function removeVSlot(c,si){
+  S.cars[c].slots.splice(si,1);
+  renderVehGrid();
+  autoSave();
+}
+
+// ===================== AVAIL TABS =====================
+function renderAvailCtabs(){
+  var wrap=document.getElementById('availCtabs');
+  var html='';
+  for(var c=1;c<=4;c++){
+    html+='<button class="ctab'+(c===activeAvailCar?' on':'')+'" data-c="'+c+'" onclick="selectAvailCar('+c+',this.parentElement)">'
+      +'<span class="cdot" style="background:'+CAR_COLORS[c]+'"></span>'+S.cars[c].name+'</button>';
+  }
+  wrap.innerHTML=html;
+}
+
+function selectAvailCar(n,container){
+  syncAll();
+  activeAvailCar=n;
+  container.querySelectorAll('.ctab').forEach(function(t){t.classList.remove('on')});
+  container.querySelector('.ctab[data-c="'+n+'"]').classList.add('on');
+  renderAvailAxis();
+  renderAvailOverview();
+  renderAvailEditors();
+}
+
+// ===================== AVAIL AXIS =====================
+function renderAvailAxis(){
+  var rm=getRaceMins(activeAvailCar),sm=getStartMins(activeAvailCar),steps=12;
+  var html='';
+  for(var i=0;i<=steps;i++){
+    html+='<div class="atick">'+fmtT(sm+rm/steps*i)+'</div>';
+  }
+  document.getElementById('availAxis').innerHTML=html;
+}
+
+// ===================== AVAIL OVERVIEW =====================
+function renderAvailOverview(){
+  var c=activeAvailCar;
+  var html='';
+  var slots=S.cars[c].slots;
+  var hasAny=false;
+  var rm=getRaceMins(c),sm=getStartMins(c);
+  slots.forEach(function(slot,si){
+    if(slot.poolIdx<0)return;
+    var name=getDriverName(slot.poolIdx);
+    if(!name)return;
+    hasAny=true;
+    var segs=getAvail(c,slot.poolIdx);
+    var col=DRV_COLORS[slot.poolIdx%DRV_COLORS.length];
+    html+='<div class="arow">'
+      +'<div class="aname">'+getDotHtml(col,7)+'<span>'+name+'</span></div>'
+      +'<div class="atrack">';
+    segs.forEach(function(seg){
+      html+='<div class="aseg '+seg.type+'" style="left:'+seg.from+'%;width:'+(seg.to-seg.from)+'%"></div>';
+    });
+    html+='</div></div>';
+  });
+  if(!hasAny) html='<div style="font-size:11px;color:var(--muted);padding:8px 0">Noch keine Fahrer zugewiesen. Gehe zu Fahrer.</div>';
+  document.getElementById('availOverview').innerHTML=html;
+}
+
+// ===================== AVAIL EDITORS =====================
+function renderAvailEditors(){
+  var c=activeAvailCar;
+  var slots=S.cars[c].slots;
+  var html='';
+  slots.forEach(function(slot,si){
+    if(slot.poolIdx<0)return;
+    var name=getDriverName(slot.poolIdx);
+    if(!name)return;
+    var pi=slot.poolIdx;
+    var col=DRV_COLORS[pi%DRV_COLORS.length];
+    var segs=getAvail(c,pi);
+    var rm=getRaceMins(c),sm=getStartMins(c);
+    html+='<div class="aed">'
+      +'<div class="aed-hdr">'+getDotHtml(col,8)+'<span>'+name+'</span></div>';
+    segs.forEach(function(seg,segI){
+      var ft=fmtT(sm+rm*seg.from/100);
+      var tt=fmtT(sm+rm*seg.to/100);
+      html+='<div class="aslot">'
+        +'<select onchange="updSegType('+c+','+pi+','+segI+',this.value)">'
+        +'<option value="avail"'+(seg.type==='avail'?' selected':'')+'>Verfuegbar</option>'
+        +'<option value="maybe"'+(seg.type==='maybe'?' selected':'')+'>Vielleicht</option>'
+        +'<option value="unavail"'+(seg.type==='unavail'?' selected':'')+'>Nicht verfuegbar</option>'
+        +'</select>'
+        +'<span style="font-size:10px;color:var(--m2)">von</span>'
+        +'<input type="time" value="'+ft+'" onchange="updSegFrom('+c+','+pi+','+segI+',this.value)">'
+        +'<span style="font-size:10px;color:var(--m2)">bis</span>'
+        +'<input type="time" value="'+tt+'" onchange="updSegTo('+c+','+pi+','+segI+',this.value)">'
+        +'<button class="del-btn" onclick="delSeg('+c+','+pi+','+segI+')">Loeschen</button>'
+        +'</div>';
+    });
+    html+='<button class="add-ts" onclick="addSeg('+c+','+pi+')">+ Zeitraum hinzufuegen</button>'
+      +'</div>';
+  });
+  if(!html) html='<div style="font-size:11px;color:var(--muted)">Noch keine Fahrer zugewiesen.</div>';
+  document.getElementById('availEditors').innerHTML=html;
+}
+
+function updSegType(c,pi,si,v){getAvail(c,pi)[si].type=v;renderAvailOverview();autoSave();}
+function updSegFrom(c,pi,si,v){getAvail(c,pi)[si].from=timeToPct(v,c);renderAvailOverview();autoSave();}
+function updSegTo(c,pi,si,v){getAvail(c,pi)[si].to=timeToPct(v,c);renderAvailOverview();autoSave();}
+function delSeg(c,pi,si){getAvail(c,pi).splice(si,1);renderAvailEditors();renderAvailOverview();autoSave();}
+function addSeg(c,pi){getAvail(c,pi).push({type:'avail',from:0,to:100});renderAvailEditors();renderAvailOverview();autoSave();}
+
+// ===================== PLAN BUILDER =====================
+function isAvailAt(c,pi,elapsedMins){
+  var segs=getAvail(c,pi),rm=getRaceMins(),pct=elapsedMins/rm*100,result='unavail';
+  segs.forEach(function(seg){
+    if(pct>=seg.from&&pct<=seg.to){
+      if(seg.type==='avail')result='avail';
+      else if(seg.type==='maybe'&&result!=='avail')result='maybe';
+    }
+  });
+  return result;
+}
+
+function buildPlan(carNum){
+  var rm=getRaceMins(carNum);
+  var stintM=getStintLen(carNum);
+  var pitM=getPitDur(carNum);
+  var sm=getStartMins(carNum);
+  var sunriseH=parseInt(document.getElementById('sunrise').value||7);
+  var sunsetH=parseInt(document.getElementById('sunset').value||21);
+
+  // Get valid driver slots (poolIdx>=0 and has a name)
+  var slots=S.cars[carNum].slots.filter(function(s){return s.poolIdx>=0&&getDriverName(s.poolIdx)});
+
+  if(!slots.length) return [];
+
+  var plan=[],elapsed=0,stintNum=0,lastPI=-1;
+
+  while(elapsed<rm){
+    var remaining=rm-elapsed;
+    var dur;
+    if(remaining<=stintM){
+      // This is the last stint - take whatever is left
+      dur=remaining;
+    } else {
+      // Check: after this full stint + one pit, how much remains?
+      var afterPit=remaining-stintM-pitM;
+      if(afterPit<=0){
+        // Not enough for another pit+stint - this is the last stint
+        dur=remaining;
+      } else if(afterPit<stintM){
+        // After pit, remainder < full stint = would create short middle stint
+        // Instead: use full stint now, remainder will be last (short) stint after pit
+        // But only if afterPit is significant (>5min), else extend this stint
+        if(afterPit>=5){
+          dur=stintM; // normal stint, short last stint is ok at very end
+        } else {
+          // Too tiny remainder - absorb into this stint
+          dur=remaining-pitM;
+          if(dur>stintM*2)dur=stintM; // safety cap
+        }
+      } else {
+        dur=stintM;
+      }
+    }
+    if(dur<=0||isNaN(dur))dur=Math.min(stintM,remaining);
+    var midH=Math.floor((sm+elapsed+dur/2)/60)%24;
+    var isNight=midH<sunriseH||midH>=sunsetH;
+
+    // Check if last stint was partial - prefer same driver to fill it up
+    var lastStintEntry=null;
+    for(var li=plan.length-1;li>=0;li--){if(!plan[li].pit){lastStintEntry=plan[li];break;}}
+    var forceLastDriver=lastStintEntry&&lastStintEntry.duration<stintM&&lastPI>=0;
+
+    // Score each driver
+    var bestSlot=null,bestScore=-99;
+    slots.forEach(function(slot){
+      var pi=slot.poolIdx;
+      var av=isAvailAt(carNum,pi,elapsed);
+      if(av==='unavail')return;
+      var score=av==='avail'?10:5;
+      if(forceLastDriver&&pi===lastPI) score+=20;
+      else if(!forceLastDriver&&pi!==lastPI) score+=3;
+      if(isNight&&slot.prefNight)score+=4;
+      if(!isNight&&slot.prefNight)score-=2;
+      if(stintNum===0&&slot.prefStart)score+=6;
+      var myStints=plan.filter(function(p){return!p.pit&&p.pi===pi}).length;
+      score-=myStints*0.5;
+      if(score>bestScore){bestScore=score;bestSlot=slot;}
+    });
+
+    if(!bestSlot){
+      // fallback: round robin ignoring avail
+      bestSlot=slots[stintNum%slots.length];
+    }
+
+    var pi=bestSlot.poolIdx;
+    var name=getDriverName(pi);
+    var col=DRV_COLORS[pi%DRV_COLORS.length];
+    var absStart=fmtT(sm+elapsed),absEnd=fmtT(sm+elapsed+dur);
+
+    // Calculate laps and fuel
+    var lapSec=parseLapTime(bestSlot.lapTime);
+    var laps=lapSec>0?Math.floor(dur*60/lapSec):0;
+    var fuelUsed=laps>0?Math.round(parseFloat(bestSlot.fuelPerLap||0)*laps*10)/10:0;
+    var tankSize=getTankSize(carNum);
+    // fuel in tank = tankSize at start of stint (simplified: refill to full each stop)
+    var fuelInTank=tankSize>0?tankSize:0;
+    // pit window: when fuel would run out
+    var pitWindowLap=0,pitWindowTime='';
+    if(lapSec>0&&parseFloat(bestSlot.fuelPerLap)>0&&tankSize>0){
+      pitWindowLap=Math.floor(tankSize/parseFloat(bestSlot.fuelPerLap));
+      pitWindowTime=fmtT(sm+elapsed+pitWindowLap*lapSec/60);
+    }
+
+    plan.push({stintNum:stintNum+1,pit:false,driver:name,pi:pi,color:col,
+      absStart:absStart,absEnd:absEnd,duration:dur,isNight:isNight,
+      elapsedStart:elapsed,elapsedEnd:elapsed+dur,
+      laps:laps,fuelUsed:fuelUsed,fuelInTank:fuelInTank,
+      pitWindowLap:pitWindowLap,pitWindowTime:pitWindowTime,
+      lapTime:bestSlot.lapTime||'',actualEnd:''});
+
+    lastPI=pi;elapsed+=dur;
+
+    if(elapsed<rm){
+      // Fuel added at stop = fuelUsed (refill what was used)
+      var fuelAdded=fuelUsed>0?fuelUsed:0;
+      plan.push({stintNum:'PIT',pit:true,driver:'',pi:-1,color:'',
+        absStart:absEnd,absEnd:fmtT(sm+elapsed+pitM),duration:pitM,isNight:false,
+        elapsedStart:elapsed,elapsedEnd:elapsed+pitM,
+        fuelAdded:fuelAdded,lapAtStop:laps*(stintNum+1)});
+      elapsed+=pitM;
+    }
+    stintNum++;
+  }
+  return plan;
+}
+
+function buildAndShow(){
+  // Full rebuild - clears all manual locks
+  syncAll();
+  for(var c=1;c<=4;c++){
+    if(S.cars[c].active===false){S.plans[c]=[];continue;}
+    S.plans[c]=buildPlan(c);
+  }
+  goTab('plan',document.querySelectorAll('.ntab')[3]);
+  autoSave();
+}
+
+function softRebuild(){
+  // Only fill missing stints at end - keep manually locked stints
+  syncAll();
+  var sunriseH=parseInt(document.getElementById('sunrise').value||7);
+  var sunsetH=parseInt(document.getElementById('sunset').value||21);
+
+  for(var c=1;c<=4;c++){
+    if(S.cars[c].active===false)continue;
+    var plan=S.plans[c];
+    if(!plan||!plan.length)continue;
+
+    var rm=getRaceMins(c);
+    var sm=getStartMins(c);
+    var stintM=getStintLen(c);
+    var pitM=getPitDur(c);
+    var slots=S.cars[c].slots.filter(function(s){return s.poolIdx>=0&&getDriverName(s.poolIdx);});
+    if(!slots.length)continue;
+
+    // Find race end coverage
+    var lastEntry=plan[plan.length-1];
+    var lastEnd=lastEntry?lastEntry.elapsedEnd:0;
+
+    if(lastEnd>=rm-0.5) continue; // already covered
+
+    // Remove trailing pit if any before filling
+    if(plan[plan.length-1].pit) plan.pop();
+
+    var elap=plan.length?plan[plan.length-1].elapsedEnd:0;
+    var stintNum=(plan.filter(function(e){return!e.pit}).length)+1;
+    var slotIdx=stintNum%Math.max(slots.length,1);
+
+    while(elap<rm){
+      var remaining=Math.round(rm-elap);
+      var dur=remaining<=stintM?remaining:stintM;
+
+      // Add pit before new stint
+      if(plan.length>0&&!plan[plan.length-1].pit){
+        var ps=fmtT(sm+elap);
+        var pitEnd=elap+pitM;
+        plan.push({stintNum:'PIT',pit:true,driver:'',pi:-1,color:'',
+          absStart:ps,absEnd:fmtT(sm+pitEnd),duration:pitM,isNight:false,
+          elapsedStart:elap,elapsedEnd:pitEnd,fuelAdded:0});
+        elap=pitEnd;
+      }
+
+      var slot=slots[slotIdx%slots.length];
+      var pi=slot.poolIdx;
+      var name=getDriverName(pi)||'';
+      var col=DRV_COLORS[pi%DRV_COLORS.length];
+      var midH=Math.floor((sm+elap+dur/2)/60)%24;
+      var isNight=midH<sunriseH||midH>=sunsetH;
+
+      plan.push({stintNum:stintNum,pit:false,driver:name,pi:pi,color:col,
+        absStart:fmtT(sm+elap),absEnd:fmtT(sm+elap+dur),duration:dur,isNight:isNight,
+        elapsedStart:elap,elapsedEnd:elap+dur,
+        laps:0,fuelUsed:0,fuelInTank:0,pitWindowLap:0,pitWindowTime:'',
+        lapTime:'',actualEnd:'',manualLock:false});
+      elap=Math.round(elap+dur);
+      stintNum++;slotIdx++;
+      if(elap>=rm)break;
+    }
+
+    // Renumber
+    var n=1;
+    plan.forEach(function(e){if(!e.pit)e.stintNum=n++;});
+  }
+
+  renderPlanCtabs();
+  renderPlanView();
+  autoSave();
+  showToast('Plan aktualisiert','ok');
+}
+
+// ===================== PLAN TAB =====================
+function renderPlanCtabs(){
+  var wrap=document.getElementById('planCtabs');
+  var html='';
+  var firstActive=-1;
+  for(var c=1;c<=4;c++){
+    if(S.cars[c].active===false)continue;
+    if(firstActive<0)firstActive=c;
+    html+='<button class="ctab'+(c===activePlanCar?' on':'')+'" data-c="'+c+'" onclick="selectPlanCar('+c+',this.parentElement)">'
+      +'<span class="cdot" style="background:'+CAR_COLORS[c]+'"></span>'+S.cars[c].name+'</button>';
+  }
+  wrap.innerHTML=html;
+  // auto-select first active car if current is inactive
+  if(S.cars[activePlanCar]&&S.cars[activePlanCar].active===false&&firstActive>0){
+    activePlanCar=firstActive;
+  }
+}
+
+function selectPlanCar(n,container){
+  activePlanCar=n;
+  container.querySelectorAll('.ctab').forEach(function(t){t.classList.remove('on')});
+  container.querySelector('.ctab[data-c="'+n+'"]').classList.add('on');
+  renderPlanView();
+}
+
+function renderPlanView(){
+  var c=activePlanCar,plan=S.plans[c];
+  if(!plan||!plan.length){
+    document.getElementById('statStints').textContent='-';
+    document.getElementById('statPits').textContent='-';
+    document.getElementById('statNacht').textContent='-';
+    document.getElementById('statTime').textContent='Kein Plan';
+    document.getElementById('ganttWrap').innerHTML='';
+    var sc=document.getElementById('stintCards');if(sc)sc.innerHTML='';
+    document.getElementById('drvDist').innerHTML='';
+    return;
+  }
+
+  var stints=plan.filter(function(p){return!p.pit});
+  var pits=plan.filter(function(p){return p.pit});
+  var nights=stints.filter(function(p){return p.isNight});
+  var endTime=fmtT(getStartMins(c)+getRaceMins(c));
+  var startTime=fmtT(getStartMins(c));
+
+  // Stats
+  document.getElementById('statStints').textContent=stints.length;
+  document.getElementById('statPits').textContent=pits.length;
+  document.getElementById('statNacht').textContent=nights.length;
+  document.getElementById('statTime').textContent=startTime+' -> '+endTime;
+
+  renderGantt(c,plan);
+  renderTable(c,plan);
+  renderDist(c,plan);
+}
+
+// ===================== GANTT =====================
+function renderGantt(carNum,plan){
+  var rm=getRaceMins(carNum),sm=getStartMins(carNum);
+  var wrap=document.getElementById('ganttWrap');
+
+  // Multi-level axis: 5min / 15min / 1h ticks
+  var axisHtml='<div class="g-hdr"><div class="g-spacer"></div><div class="g-ticks" style="flex:1;position:relative;height:28px">';
+  var totalMins=rm;
+  for(var m=0;m<=totalMins;m+=5){
+    var pct=(m/totalMins*100).toFixed(4);
+    var isHour=(m%60===0);
+    var is15=(m%15===0&&!isHour);
+    var is5=(!isHour&&!is15);
+    var lineH=isHour?'100%':is15?'55%':'30%';
+    var lineCol=isHour?'rgba(255,255,255,.25)':is15?'rgba(255,255,255,.12)':'rgba(255,255,255,.06)';
+    axisHtml+='<div style="position:absolute;left:'+pct+'%;top:0;width:1px;height:'+lineH+';background:'+lineCol+'"></div>';
+    if(isHour){
+      var timeStr=fmtT(sm+m);
+      axisHtml+='<div style="position:absolute;left:'+pct+'%;bottom:0;transform:translateX(-50%);font-size:10px;color:var(--m2);font-weight:600;white-space:nowrap">'+timeStr+'</div>';
+    } else if(is15){
+      var timeStr=fmtT(sm+m);
+      axisHtml+='<div style="position:absolute;left:'+pct+'%;bottom:0;transform:translateX(-50%);font-size:8px;color:var(--muted);white-space:nowrap">'+timeStr+'</div>';
+    }
+  }
+  axisHtml+='</div></div>';
+
+  // Get unique drivers in this plan
+  var driverPIs=[];
+  plan.forEach(function(p){if(!p.pit&&p.pi>=0&&driverPIs.indexOf(p.pi)<0)driverPIs.push(p.pi);});
+
+  var rowsHtml='';
+  driverPIs.forEach(function(pi){
+    var name=getDriverName(pi)||('Fahrer '+(pi+1));
+    var col=DRV_COLORS[pi%DRV_COLORS.length];
+
+    // Build unavail overlays
+    var segs=getAvail(carNum,pi);
+    var overlays='';
+    // show unavail regions
+    // First compute available intervals and invert for overlay
+    var unavailSegs=segs.filter(function(s){return s.type==='unavail'});
+    unavailSegs.forEach(function(seg){
+      overlays+='<div class="g-unavail" style="left:'+seg.from+'%;width:'+(seg.to-seg.from)+'%"></div>';
+    });
+
+    // Driver stints
+        var stintSegs='';
+    plan.forEach(function(p,pidx){
+      if(p.pit){
+        var l=(p.elapsedStart/rm*100).toFixed(3);
+        var w=Math.max(0.15,(p.duration/rm*100)).toFixed(3);
+        stintSegs+='<div class="gseg pit" style="top:2px;height:26px;left:'+l+'%;width:'+w+'%"></div>';
+        return;
+      }
+      if(p.pi!==pi)return;
+      var l=(p.elapsedStart/rm*100).toFixed(3);
+      var w=(p.duration/rm*100).toFixed(3);
+      var nc=p.isNight?' night':'';
+      var label=parseFloat(w)>1?String(p.stintNum):'';
+      stintSegs+='<div class="gseg'+nc+'" '
+        +'data-idx="'+pidx+'" '
+        +'style="top:2px;height:26px;left:'+l+'%;width:'+w+'%;background:'+col+';font-size:11px;'+(p.manualLock?'outline:2px solid rgba(255,255,255,.4);outline-offset:-2px':'')+'" '
+        +'title="Stint '+p.stintNum+': '+p.absStart+' - '+p.absEnd+'" '
+        +'onmousedown="startDrag(event,'+carNum+','+pidx+')">'
+        +label
+        +'</div>';
+    });
+    rowsHtml+='<div class="grow" id="grow_'+carNum+'_'+pi+'">'
+      +'<div class="glbl">'+getDotHtml(col,7)+'<span>'+name+'</span></div>'
+      +'<div class="gtrack" data-car="'+carNum+'" data-pi="'+pi+'">'+overlays+stintSegs+'</div>'
+      +'</div>';
+  });
+
+  wrap.innerHTML=axisHtml+rowsHtml;
+}
+
+// ===================== DRAG & DROP =====================
+var drag={active:false,idx:-1,car:-1,el:null,startX:0,origLeft:0,trackW:0,trackEl:null,origElapsed:0,pctPerPx:0,currentLeft:0};
+
+function startDrag(e,carNum,planIdx){
+  var plan=S.plans[carNum];
+  if(!plan||!plan[planIdx])return;
+  var p=plan[planIdx];
+  if(p.pit)return;
+  e.preventDefault();
+  var el=e.currentTarget;
+  var track=el.parentElement;
+  var trackRect=track.getBoundingClientRect();
+  drag={
+    active:true,idx:planIdx,car:carNum,el:el,
+    startX:e.clientX,
+    origLeft:parseFloat(el.style.left),
+    trackW:trackRect.width,
+    trackEl:track,
+    origElapsed:p.elapsedStart,
+    pctPerPx:100/trackRect.width
+  };
+  el.classList.add('dragging');
+  document.addEventListener('mousemove',onDrag);
+  document.addEventListener('mouseup',endDrag);
+}
+
+function onDrag(e){
+  if(!drag.active)return;
+  var dx=e.clientX-drag.startX;
+  var newLeft=Math.max(0,Math.min(99,drag.origLeft+dx*drag.pctPerPx));
+  drag.currentLeft=newLeft;
+  drag.el.style.left=newLeft.toFixed(3)+'%';
+}
+
+function endDrag(e){
+  if(!drag.active)return;
+  document.removeEventListener('mousemove',onDrag);
+  document.removeEventListener('mouseup',endDrag);
+  drag.el.classList.remove('dragging');
+  drag.active=false;
+
+  var plan=S.plans[drag.car];
+  var sm=getStartMins(drag.car);
+  var rm=getRaceMins(drag.car);
+  var pitM=getPitDur(drag.car);
+  var p=plan[drag.idx];
+
+  // Determine target position from where mouse released (drag.currentLeft = %)
+  var targetElapsed=Math.round(drag.currentLeft/100*rm);
+
+  // Find which stint slot this corresponds to (which sequential slot index)
+  // Count only non-pit stints
+  var stintSlots=[];
+  plan.forEach(function(entry,i){if(!entry.pit)stintSlots.push(i);});
+
+  // Find which slot index the dragged stint was in
+  var fromSlotIdx=stintSlots.indexOf(drag.idx);
+  if(fromSlotIdx<0){renderGantt(drag.car,plan);return;}
+
+  // Find target slot: which slot's position is closest to targetElapsed
+  var bestSlot=fromSlotIdx;
+  var bestDist=9999999;
+  stintSlots.forEach(function(planIdx,slotIdx){
+    var dist=Math.abs(plan[planIdx].elapsedStart-targetElapsed);
+    if(dist<bestDist){bestDist=dist;bestSlot=slotIdx;}
+  });
+
+  if(bestSlot===fromSlotIdx){
+    // No change - re-render to reset visual
+    renderGantt(drag.car,plan);
+    return;
+  }
+
+  // Swap the driver assignments between the two slots
+  var toSlotIdx=bestSlot;
+  var fromPlanIdx=stintSlots[fromSlotIdx];
+  var toPlanIdx=stintSlots[toSlotIdx];
+
+  // Swap pi, driver, color, lapTime, fuelPerLap between the two stints
+  var tmp={pi:plan[fromPlanIdx].pi, driver:plan[fromPlanIdx].driver,
+    color:plan[fromPlanIdx].color, lapTime:plan[fromPlanIdx].lapTime,
+    fuelUsed:plan[fromPlanIdx].fuelUsed, laps:plan[fromPlanIdx].laps,
+    fuelInTank:plan[fromPlanIdx].fuelInTank,
+    pitWindowLap:plan[fromPlanIdx].pitWindowLap,
+    pitWindowTime:plan[fromPlanIdx].pitWindowTime};
+
+  plan[fromPlanIdx].pi=plan[toPlanIdx].pi;
+  plan[fromPlanIdx].driver=plan[toPlanIdx].driver;
+  plan[fromPlanIdx].color=plan[toPlanIdx].color;
+  plan[fromPlanIdx].lapTime=plan[toPlanIdx].lapTime;
+  plan[fromPlanIdx].fuelUsed=plan[toPlanIdx].fuelUsed;
+  plan[fromPlanIdx].laps=plan[toPlanIdx].laps;
+  plan[fromPlanIdx].fuelInTank=plan[toPlanIdx].fuelInTank;
+  plan[fromPlanIdx].pitWindowLap=plan[toPlanIdx].pitWindowLap;
+  plan[fromPlanIdx].pitWindowTime=plan[toPlanIdx].pitWindowTime;
+
+  plan[toPlanIdx].pi=tmp.pi;
+  plan[toPlanIdx].driver=tmp.driver;
+  plan[toPlanIdx].color=tmp.color;
+  plan[toPlanIdx].lapTime=tmp.lapTime;
+  plan[toPlanIdx].fuelUsed=tmp.fuelUsed;
+  plan[toPlanIdx].laps=tmp.laps;
+  plan[toPlanIdx].fuelInTank=tmp.fuelInTank;
+  plan[toPlanIdx].pitWindowLap=tmp.pitWindowLap;
+  plan[toPlanIdx].pitWindowTime=tmp.pitWindowTime;
+
+  // Mark both stints as manually placed
+  plan[fromPlanIdx].manualLock=true;
+  plan[toPlanIdx].manualLock=true;
+  showToast('Stint getauscht: '+plan[toPlanIdx].driver+' <-> '+plan[fromPlanIdx].driver,'ok');
+  renderGantt(drag.car,plan);
+  renderTable(drag.car,plan);
+  renderDist(drag.car,plan);
+  autoSave();
+}
+// ===================== ACTUAL END TIME =====================
+function setActualEnd(carNum, idx, timeStr){
+  var plan=S.plans[carNum];
+  if(!plan||!plan[idx])return;
+  var p=plan[idx];
+  if(!timeStr){
+    p.actualEnd='';
+    recalcFromIdx(carNum, idx);
+    renderPlanView();
+    autoSave();
+    return;
+  }
+  p.actualEnd=timeStr;
+  recalcFromIdx(carNum, idx);
+  renderPlanView();
+  autoSave();
+}
+
+function recalcFromIdx(carNum, idx){
+  var plan=S.plans[carNum];
+  var sm=getStartMins(carNum);
+  var rm=getRaceMins(carNum);
+  var pitM=getPitDur(carNum);
+  var stintM=getStintLen(carNum);
+  var sunriseH=parseInt(document.getElementById('sunrise').value||7);
+  var sunsetH=parseInt(document.getElementById('sunset').value||21);
+  var p=plan[idx];
+  if(!p||p.pit)return;
+
+  // Apply actual end time if set
+  if(p.actualEnd){
+    var aep=p.actualEnd.split(':');
+    var aeAbsMins=parseInt(aep[0])*60+parseInt(aep[1]);
+    var stintStartAbsMins=sm+p.elapsedStart;
+    if(aeAbsMins<stintStartAbsMins%1440) aeAbsMins+=24*60;
+    var newDur=Math.round(aeAbsMins-(stintStartAbsMins%1440));
+    if(newDur<1)newDur=1;
+    if(newDur>480)newDur=480;
+    p.duration=newDur;
+    p.elapsedEnd=p.elapsedStart+newDur;
+    p.absEnd=fmtT(sm+p.elapsedEnd);
+  }
+
+  // Cascade update all following entries
+  var elapsed=p.elapsedEnd;
+  for(var i=idx+1;i<plan.length;i++){
+    var entry=plan[i];
+    entry.elapsedStart=Math.round(elapsed);
+    entry.absStart=fmtT(sm+entry.elapsedStart);
+    if(entry.pit){
+      elapsed=Math.round(elapsed)+entry.duration;
+      entry.elapsedEnd=Math.round(elapsed);
+      entry.absEnd=fmtT(sm+entry.elapsedEnd);
+    } else {
+      entry.duration=Math.round(entry.duration);
+      entry.elapsedEnd=Math.round(elapsed)+entry.duration;
+      entry.absEnd=fmtT(sm+entry.elapsedEnd);
+      elapsed=entry.elapsedEnd;
+      var midH=Math.floor((sm+elapsed-entry.duration/2)/60)%24;
+      entry.isNight=midH<sunriseH||midH>=sunsetH;
+    }
+  }
+
+  // Check if race end is covered - extend last stint or add new one
+  var raceEnd=rm; // elapsed minutes at race end
+  var lastEntry=plan[plan.length-1];
+  var lastEnd=lastEntry?lastEntry.elapsedEnd:0;
+
+  if(lastEnd<raceEnd-0.5){
+    // Race not covered - extend last non-pit stint or add new
+    var lastStint=null;
+    for(var j=plan.length-1;j>=0;j--){
+      if(!plan[j].pit){lastStint=plan[j];break;}
+    }
+    // Remove trailing pit if it's the last entry
+    if(plan[plan.length-1].pit){
+      plan.pop();
+    }
+    if(lastStint&&lastStint.elapsedEnd<raceEnd){
+      // Add extra stints to fill remaining race time
+      var elap=lastStint.elapsedEnd;
+      var stintNum=lastStint.stintNum+1;
+      // Find the slot index for round-robin
+      var slots=S.cars[carNum].slots.filter(function(s){return s.poolIdx>=0&&getDriverName(s.poolIdx);});
+      var slotIdx=(plan.filter(function(e){return!e.pit}).length)%Math.max(slots.length,1);
+      while(elap<raceEnd){
+        var remaining=Math.round(raceEnd-elap);
+        var dur=Math.min(stintM,remaining);
+        // pit before new stint
+        if(elap>lastStint.elapsedEnd){
+          var pitStart=fmtT(sm+elap);
+          elap=Math.round(elap)+Math.round(pitM);
+          plan.push({stintNum:'PIT',pit:true,driver:'',pi:-1,color:'',
+            absStart:pitStart,absEnd:fmtT(sm+elap),duration:Math.round(pitM),
+            isNight:false,elapsedStart:elap-Math.round(pitM),elapsedEnd:elap,
+            fuelAdded:0,lapAtStop:0});
+        }
+        var slot=slots[slotIdx%Math.max(slots.length,1)];
+        var pi=slot?slot.poolIdx:-1;
+        var name=slot?getDriverName(pi):'';
+        var col=pi>=0?DRV_COLORS[pi%DRV_COLORS.length]:'#888';
+        var midH2=Math.floor((sm+elap+dur/2)/60)%24;
+        var isNight2=midH2<sunriseH||midH2>=sunsetH;
+        var absS=fmtT(sm+elap),absE=fmtT(sm+elap+dur);
+        plan.push({stintNum:stintNum,pit:false,driver:name,pi:pi,color:col,
+          absStart:absS,absEnd:absE,duration:dur,isNight:isNight2,
+          elapsedStart:elap,elapsedEnd:elap+dur,
+          laps:0,fuelUsed:0,fuelInTank:0,pitWindowLap:0,pitWindowTime:'',
+          lapTime:'',actualEnd:''});
+        elap=Math.round(elap+dur);
+        stintNum++;
+        slotIdx++;
+        if(elap>=raceEnd)break;
+      }
+    }
+  } else if(lastEnd>raceEnd+0.5){
+    // Last stint overshoots - trim it
+    for(var j=plan.length-1;j>=0;j--){
+      if(!plan[j].pit){
+        var overshoot=lastEnd-raceEnd;
+        plan[j].duration=Math.round(plan[j].duration-overshoot);
+        if(plan[j].duration<1)plan[j].duration=1;
+        plan[j].elapsedEnd=plan[j].elapsedStart+plan[j].duration;
+        plan[j].absEnd=fmtT(sm+plan[j].elapsedEnd);
+        // Remove any trailing pit after this
+        if(j===plan.length-2&&plan[plan.length-1].pit) plan.pop();
+        break;
+      }
+    }
+  }
+}
+
+// ===================== STINT CARDS =====================
+function renderTable(carNum,plan){
+  var html='';
+  var tankSize=getTankSize(carNum);
+  plan.forEach(function(p,idx){
+    if(p.pit){
+      var driverChange='';
+      var next=plan[idx+1];
+      if(next&&!next.pit&&next.driver){
+        var prev=plan[idx-1];
+        if(prev&&!prev.pit&&prev.driver!==next.driver){
+          driverChange='<span style="color:var(--acc);font-size:10px;font-weight:600">Fahrerwechsel: '+next.driver+'</span>';
+        }
+      }
+      html+='<div style="display:flex;align-items:stretch;gap:0;margin:0 0 2px 0">'
+        +'<div style="width:3px;background:rgba(245,158,11,.3);border-radius:2px;flex-shrink:0;margin-right:10px"></div>'
+        +'<div style="flex:1;background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.15);border-radius:6px;padding:8px 12px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">'
+        +'<span style="font-size:10px;font-weight:700;color:rgba(245,158,11,.7)">BOX</span>'
+        +'<span style="font-size:10px;color:var(--muted)">Dauer: <b style="color:var(--text)">'+Math.round(p.duration*60)+' Sek</b></span>'
+        +(p.fuelAdded>0?'<span style="font-size:10px;color:var(--muted)">Sprit: <b style="color:var(--green)">+'+p.fuelAdded+' L</b></span>':'')
+        +(driverChange?'<span style="font-size:10px;color:var(--muted)"> | </span>'+driverChange:'')
+        +'</div></div>';
+    } else {
+      var nightBadge=p.isNight
+        ?'<span style="background:rgba(168,85,247,.15);color:#c084fc;font-size:9px;padding:2px 7px;border-radius:9px;font-weight:600">Nacht</span>'
+        :'<span style="background:rgba(245,158,11,.1);color:#fbbf24;font-size:9px;padding:2px 7px;border-radius:9px;font-weight:600">Tag</span>';
+      html+='<div style="display:flex;align-items:stretch;gap:0;margin:0 0 2px 0">'
+        +'<div style="width:3px;background:'+p.color+';border-radius:2px;flex-shrink:0;margin-right:10px"></div>'
+        +'<div style="flex:1;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:10px 14px">'
+        +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;flex-wrap:wrap">'
+        +'<span style="font-size:11px;font-weight:700;color:var(--muted);width:24px">#'+p.stintNum+'</span>'
+        +getDotHtml(p.color,8)
+        +'<span style="font-size:13px;font-weight:600;color:var(--text)">'+p.driver+'</span>'
+        +'<span style="font-size:11px;color:var(--m2);margin-left:4px">'+p.absStart+' &ndash; '+p.absEnd+'</span>'
+        +'<span style="margin-left:auto;display:flex;align-items:center;gap:6px">'
+        +nightBadge
+        +'<span style="font-size:9px;color:var(--muted)">Ist-Ende:</span>'
+        +'<input type="time" value="'+(p.actualEnd||'')+'" data-idx="'+idx+'" data-car="'+carNum+'" '
+        +'style="width:100px;padding:4px 8px;font-size:12px;font-weight:600;margin:0;background:var(--s3);border:2px solid '+(p.actualEnd?'var(--acc)':'var(--border)')+';border-radius:5px;color:'+(p.actualEnd?'var(--acc)':'var(--m2)')+'" '
+        +'onchange="setActualEnd('+carNum+','+idx+',this.value)" '
+        +'title="Tatsaechliche Endzeit - alles danach wird neu berechnet">'
+        +'<button onclick="confirmDeleteStint('+carNum+','+idx+')" title="Stint loeschen" '
+        +'style="padding:3px 7px;border-radius:4px;border:1px solid rgba(239,68,68,.4);color:var(--red);background:transparent;cursor:pointer;font-size:10px;font-weight:700;font-family:inherit">x</button>'
+        +'</span>'
+        +'</div>'
+        +'<div style="display:flex;gap:20px;flex-wrap:wrap">'
+        +(p.laps>0?'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Runden</span><span style="font-size:12px;font-weight:600;color:var(--text)">~'+p.laps+'</span></div>':'')
+        +(p.fuelUsed>0?'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Verbrauch</span><span style="font-size:12px;font-weight:600;color:var(--text)">'+p.fuelUsed+' L</span></div>':'')
+        +(tankSize>0&&p.fuelUsed>0?'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Im Tank</span><span style="font-size:12px;font-weight:600;color:'+(p.fuelUsed>tankSize*0.8?'var(--red)':'var(--text)')+'">'+Math.max(0,Math.round((tankSize-p.fuelUsed)*10)/10)+' L</span></div>':'')
+        +(p.pitWindowTime?'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Pit-Fenster</span><span style="font-size:12px;font-weight:600;color:var(--acc)">'+p.pitWindowTime+' (~Rd '+p.pitWindowLap+')</span></div>':'')
+        +(p.lapTime?'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Rd-Zeit</span><span style="font-size:12px;font-weight:600;color:var(--text)">'+p.lapTime+'</span></div>':'')
+        +'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Stintzeit</span><span style="font-size:12px;font-weight:600;color:'+(p.actualEnd?'var(--acc)':'var(--text)')+'">'+Math.round(p.duration)+' Min'+(p.actualEnd?' *':'')+'</span></div>'
+        +(p.actualEnd?'<div style="display:flex;flex-direction:column;gap:1px"><span style="font-size:9px;color:var(--acc);text-transform:uppercase;letter-spacing:.06em">Korrigiert</span><span style="font-size:10px;font-weight:600;color:var(--acc)">Ist-Ende: '+p.actualEnd+'</span></div>':'')
+        +'</div>'
+        +'</div></div>';
+    }
+  });
+  var el=document.getElementById('stintCards');
+  if(el)el.innerHTML=html;
+}
+
+// ===================== DELETE STINT =====================
+function confirmDeleteStint(carNum, idx){
+  var plan=S.plans[carNum];
+  if(!plan||!plan[idx])return;
+  var driverName=plan[idx].driver||'diesen Stint';
+  if(!confirm('Stint #'+plan[idx].stintNum+' von '+driverName+' loeschen?\nDer Plan wird automatisch neu aufgefuellt.')) return;
+  deleteStint(carNum, idx);
+}
+
+function deleteStint(carNum, idx){
+  var plan=S.plans[carNum];
+  if(!plan||!plan[idx]||plan[idx].pit)return;
+  var sm=getStartMins(carNum);
+  var rm=getRaceMins(carNum);
+  var pitM=getPitDur(carNum);
+  var stintM=getStintLen(carNum);
+
+  // Remove this stint and its adjacent pit stop
+  // If pit before: remove pit before + this stint
+  // If pit after: remove this stint + pit after
+  var removeIdxs=[];
+  removeIdxs.push(idx);
+  if(idx>0&&plan[idx-1].pit) removeIdxs.push(idx-1);
+  else if(idx<plan.length-1&&plan[idx+1].pit) removeIdxs.push(idx+1);
+
+  removeIdxs.sort(function(a,b){return b-a;}); // remove from end
+  removeIdxs.forEach(function(i){plan.splice(i,1);});
+
+  // Recalculate all elapsed times from scratch
+  var elapsed=0;
+  plan.forEach(function(entry){
+    entry.elapsedStart=elapsed;
+    entry.absStart=fmtT(sm+elapsed);
+    elapsed+=entry.duration;
+    entry.elapsedEnd=elapsed;
+    entry.absEnd=fmtT(sm+elapsed);
+  });
+
+  // Now fill remaining race time if needed
+  var lastEnd=plan.length?plan[plan.length-1].elapsedEnd:0;
+  var sunriseH=parseInt(document.getElementById('sunrise').value||7);
+  var sunsetH=parseInt(document.getElementById('sunset').value||21);
+
+  if(lastEnd<rm-0.5){
+    // Remove trailing pit if any
+    if(plan.length&&plan[plan.length-1].pit) plan.pop();
+    var elap=plan.length?plan[plan.length-1].elapsedEnd:0;
+    // Get available slots
+    var slots=S.cars[carNum].slots.filter(function(s){return s.poolIdx>=0&&getDriverName(s.poolIdx);});
+    if(!slots.length){renderGantt(carNum,plan);renderTable(carNum,plan);renderDist(carNum,plan);return;}
+    var stintNum=(plan.filter(function(e){return!e.pit}).length)+1;
+    var slotIdx=stintNum%slots.length;
+    while(elap<rm){
+      var remaining=Math.round(rm-elap);
+      // Always full stint, only last can be shorter
+      var dur=(remaining<=stintM)?remaining:stintM;
+      // Add pit before new stint (if not first)
+      if(plan.length>0&&!plan[plan.length-1].pit){
+        var ps=fmtT(sm+elap);
+        var pitEnd=elap+pitM;
+        plan.push({stintNum:'PIT',pit:true,driver:'',pi:-1,color:'',
+          absStart:ps,absEnd:fmtT(sm+pitEnd),duration:pitM,isNight:false,
+          elapsedStart:elap,elapsedEnd:pitEnd,fuelAdded:0});
+        elap=pitEnd;
+      }
+      var slot=slots[slotIdx%slots.length];
+      var pi=slot.poolIdx;
+      var name=getDriverName(pi)||'';
+      var col=DRV_COLORS[pi%DRV_COLORS.length];
+      var midH=Math.floor((sm+elap+dur/2)/60)%24;
+      var isNight=midH<sunriseH||midH>=sunsetH;
+      plan.push({stintNum:stintNum,pit:false,driver:name,pi:pi,color:col,
+        absStart:fmtT(sm+elap),absEnd:fmtT(sm+elap+dur),duration:dur,isNight:isNight,
+        elapsedStart:elap,elapsedEnd:elap+dur,
+        laps:0,fuelUsed:0,fuelInTank:0,pitWindowLap:0,pitWindowTime:'',
+        lapTime:'',actualEnd:''});
+      elap=Math.round(elap+dur);
+      stintNum++;slotIdx++;
+      if(elap>=rm)break;
+    }
+  }
+
+  // Renumber stints
+  var n=1;
+  plan.forEach(function(e){if(!e.pit)e.stintNum=n++;});
+
+  renderGantt(carNum,plan);
+  renderTable(carNum,plan);
+  renderDist(carNum,plan);
+  autoSave();
+  showToast('Stint geloescht und Plan angepasst','ok');
+}
+
+// ===================== DIST =====================
+function renderDist(carNum,plan){
+  var stints=plan.filter(function(p){return!p.pit});
+  var counts={};
+  var piList=[];
+  stints.forEach(function(p){
+    if(counts[p.pi]===undefined){piList.push(p.pi);}
+    counts[p.pi]=(counts[p.pi]||0)+1;
+  });
+  var total=stints.length||1;
+  var maxC=Math.max.apply(null,Object.values(counts).concat([1]));
+
+  // Bar chart (existing)
+  var html='';
+  piList.forEach(function(pi){
+    pi=parseInt(pi);
+    var name=getDriverName(pi)||('Fahrer '+(pi+1));
+    var cnt=counts[pi]||0;
+    var pct=Math.round(cnt/maxC*100);
+    var col=DRV_COLORS[pi%DRV_COLORS.length];
+    html+='<div class="drow">'
+      +'<div class="dname">'+getDotHtml(col,7)+'<span>'+name+'</span></div>'
+      +'<div class="dbar-w"><div class="dbar" style="width:'+pct+'%;background:'+col+'"></div></div>'
+      +'<div class="dcnt">'+cnt+'x</div></div>';
+  });
+  var distEl=document.getElementById('drvDist');
+  if(distEl)distEl.innerHTML=html||'<span style="color:var(--muted);font-size:11px">Keine Daten</span>';
+
+  // Donut chart
+  var canvas=document.getElementById('drvDonut');
+  var legend=document.getElementById('drvDonutLegend');
+  if(!canvas||!legend)return;
+  var ctx=canvas.getContext('2d');
+  var cx=40,cy=40,r=36,rIn=22;
+  ctx.clearRect(0,0,80,80);
+  var startAngle=-Math.PI/2;
+  piList.forEach(function(pi){
+    pi=parseInt(pi);
+    var cnt=counts[pi]||0;
+    var slice=cnt/total*Math.PI*2;
+    var col=DRV_COLORS[pi%DRV_COLORS.length];
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,startAngle,startAngle+slice);
+    ctx.closePath();
+    ctx.fillStyle=col;
+    ctx.fill();
+    startAngle+=slice;
+  });
+  // Inner circle (donut hole)
+  ctx.beginPath();
+  ctx.arc(cx,cy,rIn,0,Math.PI*2);
+  ctx.fillStyle='#18181f';
+  ctx.fill();
+  // Center text
+  ctx.fillStyle='#e8e8f8';
+  ctx.font='bold 12px Segoe UI,Arial,sans-serif';
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillText(total+'x',cx,cy);
+
+  // Legend
+  var legHtml='';
+  piList.forEach(function(pi){
+    pi=parseInt(pi);
+    var name=getDriverName(pi)||('Fahrer '+(pi+1));
+    var cnt=counts[pi]||0;
+    var col=DRV_COLORS[pi%DRV_COLORS.length];
+    var shortName=name.split(' ')[0];
+    legHtml+='<div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--m2)">'
+      +'<div style="width:8px;height:8px;border-radius:50%;background:'+col+';flex-shrink:0"></div>'
+      +'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)">'+shortName+'</span>'
+      +'<span style="color:var(--acc);font-weight:700;min-width:20px;text-align:right">'+cnt+'x</span>'
+      +'</div>';
+  });
+  legend.innerHTML=legHtml;
+}
+
+// ===================== CLOUD SYNC =====================
+var CLOUD_URL='https://spr-stintplaner-api.sprl.workers.dev';
+var SYNC_POLL_MS=10000;
+var lastServerTs=0;
+var isSyncing=false;
+var pollTimer=null;
+var pendingPush=false;
+
+function saveSyncUser(){
+  var v=document.getElementById('syncUser').value.trim();
+  localStorage.setItem('spr_sync_user',v);
+}
+function getSyncUser(){
+  return document.getElementById('syncUser').value.trim()||'unbekannt';
+}
+function setSyncStatus(state,text){
+  var dot=document.getElementById('syncDot');
+  var txt=document.getElementById('syncTxt');
+  if(!dot||!txt)return;
+  dot.className='syncdot '+(state||'');
+  txt.textContent=text||'';
+}
+function fmtAgo(ts){
+  if(!ts)return '';
+  var s=Math.floor((Date.now()-ts)/1000);
+  if(s<5)return 'gerade eben';
+  if(s<60)return 'vor '+s+'s';
+  var m=Math.floor(s/60);
+  if(m<60)return 'vor '+m+'min';
+  var h=Math.floor(m/60);
+  return 'vor '+h+'h';
+}
+function buildSnapshot(){
+  syncAll();
+  return {
+    form:collectFormData(),
+    pool:S.pool,cars:S.cars,avail:S.avail,plans:S.plans,
+    activeAvailCar:activeAvailCar,activePlanCar:activePlanCar
+  };
+}
+function applySnapshot(data){
+  if(!data)return;
+  if(data.form){Object.keys(data.form).forEach(function(k){var el=document.getElementById(k);if(el)el.value=data.form[k];});}
+  if(data.pool)S.pool=data.pool;
+  if(data.cars)S.cars=data.cars;
+  if(data.avail)S.avail=data.avail;
+  if(data.plans)S.plans=data.plans;
+  if(data.activeAvailCar)activeAvailCar=data.activeAvailCar;
+  if(data.activePlanCar)activePlanCar=data.activePlanCar;
+}
+function reRenderAll(){
+  try{
+    updateTop();
+    initSetup();
+    renderPool();
+    renderVehGrid();
+    initSlots();
+    if(typeof renderAvailEditors==='function')renderAvailEditors();
+    if(typeof renderAvailOverview==='function')renderAvailOverview();
+    if(typeof renderPlan==='function')renderPlan();
+  }catch(e){console.error('reRender error',e);}
+}
+async function cloudPull(silent){
+  try{
+    if(!silent)setSyncStatus('sync','Lade...');
+    var r=await fetch(CLOUD_URL+'/plan',{method:'GET',cache:'no-store'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    var j=await r.json();
+    if(j.data && j.updatedAt && j.updatedAt>lastServerTs){
+      lastServerTs=j.updatedAt;
+      applySnapshot(j.data);
+      reRenderAll();
+      try{localStorage.setItem('spr_stintplaner',JSON.stringify(j.data));}catch(e){}
+      setSyncStatus('ok','Aktualisiert von '+(j.updatedBy||'jemand')+' '+fmtAgo(j.updatedAt));
+      return true;
+    }
+    if(j.updatedAt){
+      lastServerTs=j.updatedAt;
+      setSyncStatus('ok','Synchron - '+fmtAgo(j.updatedAt));
+    } else {
+      setSyncStatus('ok','Verbunden - leer');
+    }
+    return false;
+  }catch(e){
+    setSyncStatus('err','Offline');
+    return false;
+  }
+}
+async function cloudPush(){
+  if(isSyncing){pendingPush=true;return;}
+  isSyncing=true;
+  setSyncStatus('sync','Speichere...');
+  try{
+    var snap=buildSnapshot();
+    var r=await fetch(CLOUD_URL+'/plan',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({data:snap,updatedBy:getSyncUser()})
+    });
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    var j=await r.json();
+    if(j.updatedAt)lastServerTs=j.updatedAt;
+    setSyncStatus('ok','Gespeichert - gerade eben');
+  }catch(e){
+    setSyncStatus('err','Speichern fehlgeschlagen');
+  }finally{
+    isSyncing=false;
+    if(pendingPush){pendingPush=false;setTimeout(cloudPush,500);}
+  }
+}
+function startPolling(){
+  if(pollTimer)clearInterval(pollTimer);
+  pollTimer=setInterval(function(){
+    if(!isSyncing)cloudPull(true);
+  },SYNC_POLL_MS);
+}
+async function initCloudSync(){
+  var savedName=localStorage.getItem('spr_sync_user');
+  if(savedName)document.getElementById('syncUser').value=savedName;
+  setSyncStatus('sync','Lade...');
+  await cloudPull(true);
+  startPolling();
+}
+
+
+
+// ===================== SAVE / LOAD =====================
+var autoSaveTimer=null;
+function autoSave(){
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer=setTimeout(saveData,1500);
+}
+
+function collectFormData(){
+  return {
+    raceName:document.getElementById('raceName').value,
+    startTime:document.getElementById('startTime').value,
+    raceDur:document.getElementById('raceDur').value,
+    stintLen:document.getElementById('stintLen').value,
+    pitDur:document.getElementById('pitDur').value,
+    sunrise:document.getElementById('sunrise').value,
+    sunset:document.getElementById('sunset').value
+  };
+}
+
+function saveData(){
+  syncAll();
+  var data={
+    form:collectFormData(),
+    pool:S.pool,cars:S.cars,avail:S.avail,plans:S.plans,
+    activeAvailCar:activeAvailCar,activePlanCar:activePlanCar
+  };
+  try{
+    localStorage.setItem('spr_stintplaner',JSON.stringify(data));
+  }catch(e){}
+  // Push zur Cloud (asynchron, blockiert UI nicht)
+  cloudPush();
+}
+
+function loadData(){
+  try{
+    var raw=localStorage.getItem('spr_stintplaner');
+    if(!raw)return false;
+    var data=JSON.parse(raw);
+    if(data.form){Object.keys(data.form).forEach(function(k){var el=document.getElementById(k);if(el)el.value=data.form[k];});}
+    if(data.pool)S.pool=data.pool;
+    if(data.cars)S.cars=data.cars;
+    if(data.avail)S.avail=data.avail;
+    if(data.plans)S.plans=data.plans;
+    if(data.activeAvailCar)activeAvailCar=data.activeAvailCar;
+    if(data.activePlanCar)activePlanCar=data.activePlanCar;
+    return true;
+  }catch(e){return false;}
+}
+
+function exportJSON(){
+  syncAll();
+  var data={form:collectFormData(),pool:S.pool,cars:S.cars,avail:S.avail,plans:S.plans};
+  var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='SPR_Stintplan_'+(document.getElementById('raceName').value||'export').replace(/\s/g,'_')+'.json';
+  a.click();
+  showToast('Exportiert','ok');
+}
+
+function importJSON(e){
+  var file=e.target.files[0];
+  if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      var data=JSON.parse(ev.target.result);
+      if(data.form){Object.keys(data.form).forEach(function(k){var el=document.getElementById(k);if(el)el.value=data.form[k];});}
+      if(data.pool)S.pool=data.pool;
+      if(data.cars)S.cars=data.cars;
+      if(data.avail)S.avail=data.avail;
+      if(data.plans)S.plans=data.plans;
+      updateTop();
+      initSetup();
+      renderPool();
+      renderVehGrid();
+      showToast('Importiert','ok');
+    }catch(err){showToast('Import fehlgeschlagen','err');}
+  };
+  reader.readAsText(file);
+}
+
+// ===================== RESET =====================
+function showReset(){document.getElementById('resetModal').classList.add('open');}
+function closeReset(){document.getElementById('resetModal').classList.remove('open');}
+function doReset(){
+  var mode=document.querySelector('input[name="resetMode"]:checked');
+  var keepPool=mode&&mode.value==='keep_pool';
+  closeReset();
+  localStorage.removeItem('spr_stintplaner');
+  var savedPool=keepPool?S.pool.slice():['','','','',''];
+  S.avail={};S.plans={1:[],2:[],3:[],4:[]};
+  S.cars={
+    1:{name:'Fahrzeug 1',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',tankSize:'',active:true},
+    2:{name:'Fahrzeug 2',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',tankSize:'',active:true},
+    3:{name:'Fahrzeug 3',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',tankSize:'',active:true},
+    4:{name:'Fahrzeug 4',slots:[],startTime:'',raceDur:'',stintLen:'',pitDur:'',tankSize:'',active:true}
+  };
+  S.pool=savedPool;
+  initSlots();
+  document.getElementById('raceName').value='SPR Charity 2026';
+  document.getElementById('startTime').value='07:00';
+  document.getElementById('raceDur').value='24';
+  document.getElementById('stintLen').value='60';
+  document.getElementById('pitDur').value='90';
+  var sunEl=document.getElementById('sunrise');if(sunEl)sunEl.value='7';
+  var sunsetEl=document.getElementById('sunset');if(sunsetEl)sunsetEl.value='21';
+  updateTop();initSetup();renderPool();renderVehGrid();
+  showToast(keepPool?'Zurueckgesetzt (Fahrerpool behalten)':'Komplett zurueckgesetzt','ok');
+}
+
+// ===================== TOAST =====================
+function showToast(msg,type){
+  var t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast '+(type||'ok')+' show';
+  clearTimeout(t._timer);
+  t._timer=setTimeout(function(){t.classList.remove('show');},2200);
+}
+
+// ===================== INIT =====================
+(function init(){
+  initSlots();
+  var loaded=loadData();
+  if(loaded){initSlots();}
+  updateTop();
+  initSetup();
+  renderPool();
+  renderVehGrid();
+  checkAuth();
+  // Cloud-Sync starten (auch wenn pwScreen noch sichtbar - Daten werden dann beim Schliessen schon da sein)
+  initCloudSync();
+})();
+</script>
+</body>
+</html>
