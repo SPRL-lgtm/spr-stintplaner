@@ -507,7 +507,18 @@ function getStartMins(c){
 function getStintLen(c){
   var v=c?S.cars[c].stintLen:'';
   if(!v||v===''){v=document.getElementById('stintLen').value;if(!v||v==='')v=60;}
-  return parseInt(v);
+  var n=parseInt(v);
+  if(isNaN(n))return 60;
+  return n; // -1 = kein Limit, nur Spritreichweite
+}
+// Berechnet effektive Stintlänge in Minuten basierend auf Tankreichweite (für stintM=-1)
+function getFuelStintMins(carNum,slot){
+  var tankSize=getTankSize(carNum);
+  var fpl=parseFloat(slot&&slot.fuelPerLap)||0;
+  var lapSec=parseLapTime(slot&&slot.lapTime||'');
+  if(tankSize<=0||fpl<=0||lapSec<=0)return 60; // Fallback wenn Daten fehlen
+  var laps=Math.floor(tankSize/fpl);
+  return Math.max(1,Math.round(laps*lapSec/60));
 }
 function getPitDur(c){
   // Returns pit duration in MINUTES (converted from seconds)
@@ -672,7 +683,7 @@ function initSetup(){
       var fields=[
         {label:'Startzeit (Pflicht)',id:'cstart'+cn,type:'time',val:car.startTime||'',ph:'',key:'startTime'},
         {label:'Dauer (h)',id:'cdur'+cn,type:'number',val:car.raceDur||'',ph:'Global',key:'raceDur',min:0.5,max:72,step:0.5},
-        {label:'Stint (Min)',id:'cstint'+cn,type:'number',val:car.stintLen||'',ph:'Global',key:'stintLen',min:5,max:300},
+        {label:'Stint (Min)',id:'cstint'+cn,type:'number',val:car.stintLen||'',ph:'-1 = kein Zeitlimit',key:'stintLen',min:-1,max:300},
         {label:'Box (Sek)',id:'cpit'+cn,type:'number',val:car.pitDur||'',ph:'z.B. 90',key:'pitDur',min:10,max:600},
         {label:'Tank (Liter)',id:'ctank'+cn,type:'number',val:car.tankSize||'',ph:'z.B. 110',key:'tankSize',min:1,max:999,step:0.5}
       ];
@@ -1057,6 +1068,7 @@ function buildPlan(carNum){
   var sm=getStartMins(carNum);
   var sunriseH=parseInt(document.getElementById('sunrise').value||7);
   var sunsetH=parseInt(document.getElementById('sunset').value||21);
+  var noLimit=(stintM===-1); // Spezialmodus: nur Spritreichweite zaehlt
 
   // Get valid driver slots (poolIdx>=0 and has a name)
   var slots=S.cars[carNum].slots.filter(function(s){return s.poolIdx>=0&&getDriverName(s.poolIdx)});
@@ -1067,39 +1079,42 @@ function buildPlan(carNum){
 
   while(elapsed<rm){
     var remaining=rm-elapsed;
+    // Bei noLimit: effektive Stintlaenge = Tankreichweite (vorlaeufig mit erstem Slot,
+    // wird unten nach Fahrerwahl ggf. korrigiert)
+    var effStintM=noLimit?getFuelStintMins(carNum,slots[0]):stintM;
     var dur;
-    if(remaining<=stintM){
+    if(remaining<=effStintM){
       // This is the last stint - take whatever is left
       dur=remaining;
     } else {
       // Check: after this full stint + one pit, how much remains?
-      var afterPit=remaining-stintM-pitM;
+      var afterPit=remaining-effStintM-pitM;
       if(afterPit<=0){
         // Not enough for another pit+stint - this is the last stint
         dur=remaining;
-      } else if(afterPit<stintM){
+      } else if(afterPit<effStintM){
         // After pit, remainder < full stint = would create short middle stint
         // Instead: use full stint now, remainder will be last (short) stint after pit
         // But only if afterPit is significant (>5min), else extend this stint
         if(afterPit>=5){
-          dur=stintM; // normal stint, short last stint is ok at very end
+          dur=effStintM; // normal stint, short last stint is ok at very end
         } else {
           // Too tiny remainder - absorb into this stint
           dur=remaining-pitM;
-          if(dur>stintM*2)dur=stintM; // safety cap
+          if(dur>effStintM*2)dur=effStintM; // safety cap
         }
       } else {
-        dur=stintM;
+        dur=effStintM;
       }
     }
-    if(dur<=0||isNaN(dur))dur=Math.min(stintM,remaining);
+    if(dur<=0||isNaN(dur))dur=Math.min(effStintM,remaining);
     var midH=Math.floor((sm+elapsed+dur/2)/60)%24;
     var isNight=midH<sunriseH||midH>=sunsetH;
 
     // Check if last stint was partial - prefer same driver to fill it up
     var lastStintEntry=null;
     for(var li=plan.length-1;li>=0;li--){if(!plan[li].pit){lastStintEntry=plan[li];break;}}
-    var forceLastDriver=lastStintEntry&&lastStintEntry.duration<stintM&&lastPI>=0;
+    var forceLastDriver=lastStintEntry&&lastStintEntry.duration<effStintM&&lastPI>=0;
 
     // Score each driver
     var bestSlot=null,bestScore=-99;
@@ -1121,6 +1136,16 @@ function buildPlan(carNum){
     if(!bestSlot){
       // fallback: round robin ignoring avail
       bestSlot=slots[stintNum%slots.length];
+    }
+
+    // Bei noLimit: Stintlaenge nochmal an gewaehlten Fahrer anpassen (sein Verbrauch/Lapzeit)
+    if(noLimit){
+      var driverStint=getFuelStintMins(carNum,bestSlot);
+      if(remaining<=driverStint){
+        dur=remaining;
+      } else {
+        dur=driverStint;
+      }
     }
 
     var pi=bestSlot.poolIdx;
@@ -1191,6 +1216,7 @@ function softRebuild(){
     var sm=getStartMins(c);
     var stintM=getStintLen(c);
     var pitM=getPitDur(c);
+    var noLimit=(stintM===-1);
     var slots=S.cars[c].slots.filter(function(s){return s.poolIdx>=0&&getDriverName(s.poolIdx);});
     if(!slots.length)continue;
 
@@ -1209,7 +1235,9 @@ function softRebuild(){
 
     while(elap<rm){
       var remaining=Math.round(rm-elap);
-      var dur=remaining<=stintM?remaining:stintM;
+      var slotForLen=slots[slotIdx%slots.length];
+      var effStintM=noLimit?getFuelStintMins(c,slotForLen):stintM;
+      var dur=remaining<=effStintM?remaining:effStintM;
 
       // Add pit before new stint
       if(plan.length>0&&!plan[plan.length-1].pit){
@@ -1582,7 +1610,9 @@ function recalcFromIdx(carNum, idx){
       var slotIdx=(plan.filter(function(e){return!e.pit}).length)%Math.max(slots.length,1);
       while(elap<raceEnd){
         var remaining=Math.round(raceEnd-elap);
-        var dur=Math.min(stintM,remaining);
+        var slotForLen=slots[slotIdx%slots.length];
+        var effStintM=(stintM===-1)?getFuelStintMins(carNum,slotForLen):stintM;
+        var dur=Math.min(effStintM,remaining);
         // pit before new stint
         if(elap>lastStint.elapsedEnd){
           var pitStart=fmtT(sm+elap);
@@ -1742,8 +1772,10 @@ function deleteStint(carNum, idx){
     var slotIdx=stintNum%slots.length;
     while(elap<rm){
       var remaining=Math.round(rm-elap);
+      var slotForLen=slots[slotIdx%slots.length];
+      var effStintM=(stintM===-1)?getFuelStintMins(carNum,slotForLen):stintM;
       // Always full stint, only last can be shorter
-      var dur=(remaining<=stintM)?remaining:stintM;
+      var dur=(remaining<=effStintM)?remaining:effStintM;
       // Add pit before new stint (if not first)
       if(plan.length>0&&!plan[plan.length-1].pit){
         var ps=fmtT(sm+elap);
