@@ -149,7 +149,8 @@ select option{background:var(--s2)}
 .g-tick-line{position:absolute;top:0;bottom:0;width:1px;background:var(--border)}
 .grow{display:flex;align-items:center;margin-bottom:4px}
 .glbl{font-size:11px;width:140px;flex-shrink:0;padding-right:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;display:flex;align-items:center;gap:5px}
-.gtrack{flex:1;height:30px;background:var(--s3);border-radius:3px;position:relative;overflow:hidden;border:1px solid var(--border)}
+.gtrack{flex:1;height:30px;background:var(--s3);border-radius:3px;position:relative;overflow:hidden;border:1px solid var(--border);transition:background .1s,border-color .1s}
+.gtrack.drophover{background:rgba(245,158,11,.15);border-color:var(--acc)}
 /* unavail overlay */
 .g-unavail{position:absolute;top:0;height:100%;background:rgba(239,68,68,.1);border-left:1px solid rgba(239,68,68,.25);pointer-events:none;z-index:0}
 /* segments */
@@ -368,7 +369,7 @@ tbody tr:hover td{background:var(--s2)}
     </div>
   </div>
   <div class="card">
-    <div class="ct">Race Timeline <span style="font-size:9px;color:var(--m2);font-weight:400;text-transform:none;letter-spacing:0">&nbsp;Stints per Drag &amp; Drop verschieben</span></div>
+    <div class="ct">Race Timeline <span style="font-size:9px;color:var(--m2);font-weight:400;text-transform:none;letter-spacing:0">&nbsp;Drag &amp; Drop: horizontal = Stints tauschen, vertikal = Fahrer wechseln</span></div>
     <div class="gantt-scroll"><div class="gantt-inner" id="ganttWrap"></div></div>
   </div>
   <div class="card">
@@ -1474,7 +1475,7 @@ function renderGantt(carNum,plan){
 }
 
 // ===================== DRAG & DROP =====================
-var drag={active:false,idx:-1,car:-1,el:null,startX:0,origLeft:0,trackW:0,trackEl:null,origElapsed:0,pctPerPx:0,currentLeft:0};
+var drag={active:false,idx:-1,car:-1,el:null,startX:0,startY:0,origLeft:0,trackW:0,trackEl:null,origElapsed:0,pctPerPx:0,currentLeft:0,targetTrack:null,origParent:null};
 
 function startDrag(e,carNum,planIdx){
   var plan=S.plans[carNum];
@@ -1487,12 +1488,15 @@ function startDrag(e,carNum,planIdx){
   var trackRect=track.getBoundingClientRect();
   drag={
     active:true,idx:planIdx,car:carNum,el:el,
-    startX:e.clientX,
+    startX:e.clientX,startY:e.clientY,
     origLeft:parseFloat(el.style.left),
     trackW:trackRect.width,
     trackEl:track,
     origElapsed:p.elapsedStart,
-    pctPerPx:100/trackRect.width
+    pctPerPx:100/trackRect.width,
+    currentLeft:parseFloat(el.style.left),
+    targetTrack:null,
+    origParent:track
   };
   el.classList.add('dragging');
   document.addEventListener('mousemove',onDrag);
@@ -1505,6 +1509,22 @@ function onDrag(e){
   var newLeft=Math.max(0,Math.min(99,drag.origLeft+dx*drag.pctPerPx));
   drag.currentLeft=newLeft;
   drag.el.style.left=newLeft.toFixed(3)+'%';
+
+  // Vertikales Hover-Detection: welche Fahrerzeile ist unter der Maus?
+  var tracks=document.querySelectorAll('.gtrack[data-car="'+drag.car+'"]');
+  var newTarget=null;
+  tracks.forEach(function(t){
+    var r=t.getBoundingClientRect();
+    if(e.clientY>=r.top&&e.clientY<=r.bottom){newTarget=t;}
+    t.classList.remove('drophover');
+  });
+  // Highlight nur wenn Ziel-Zeile != Original-Zeile
+  if(newTarget && newTarget!==drag.origParent){
+    newTarget.classList.add('drophover');
+    drag.targetTrack=newTarget;
+  } else {
+    drag.targetTrack=null;
+  }
 }
 
 function endDrag(e){
@@ -1512,13 +1532,64 @@ function endDrag(e){
   document.removeEventListener('mousemove',onDrag);
   document.removeEventListener('mouseup',endDrag);
   drag.el.classList.remove('dragging');
+  // Alle Highlights wegmachen
+  document.querySelectorAll('.gtrack.drophover').forEach(function(t){t.classList.remove('drophover');});
   drag.active=false;
 
   var plan=S.plans[drag.car];
+  var p=plan[drag.idx];
+
+  // CASE 1: Vertikales Drop auf andere Fahrerzeile -> Fahrer wechseln
+  if(drag.targetTrack){
+    var newPi=parseInt(drag.targetTrack.getAttribute('data-pi'));
+    if(!isNaN(newPi) && newPi!==p.pi){
+      // Slot des neuen Fahrers fuer diesen Wagen finden (fuer Lapzeit/Verbrauch)
+      var slots=S.cars[drag.car].slots;
+      var newSlot=null;
+      for(var si=0;si<slots.length;si++){
+        if(slots[si].poolIdx===newPi){newSlot=slots[si];break;}
+      }
+      var newName=getDriverName(newPi);
+      var newCol=DRV_COLORS[newPi%DRV_COLORS.length];
+      p.pi=newPi;
+      p.driver=newName;
+      p.color=newCol;
+      // Lapzeit & Verbrauch vom neuen Fahrer uebernehmen, Runden/Sprit neu rechnen
+      if(newSlot){
+        p.lapTime=newSlot.lapTime||p.lapTime;
+        var lapSec=parseLapTime(p.lapTime);
+        var fpl=parseFloat(newSlot.fuelPerLap)||0;
+        if(lapSec>0){
+          p.laps=Math.floor(p.duration*60/lapSec);
+        }
+        if(fpl>0){
+          p.fuelUsed=Math.round(fpl*p.laps*10)/10;
+          var tankSize=getTankSize(drag.car);
+          if(tankSize>0){
+            p.pitWindowLap=Math.floor(tankSize/fpl);
+            p.pitWindowTime=fmtT(getStartMins(drag.car)+p.elapsedStart+p.pitWindowLap*lapSec/60);
+          }
+        }
+      }
+      p.manualLock=true;
+      // Pit nach diesem Stint: fuelAdded aktualisieren
+      if(plan[drag.idx+1]&&plan[drag.idx+1].pit){
+        plan[drag.idx+1].fuelAdded=p.fuelUsed;
+        plan[drag.idx+1].lapAtStop=p.laps;
+      }
+      showToast('Fahrer geaendert: '+newName,'ok');
+      renderGantt(drag.car,plan);
+      renderTable(drag.car,plan);
+      renderDist(drag.car,plan);
+      autoSave();
+      return;
+    }
+  }
+
+  // CASE 2: Horizontales Drag in gleicher Zeile -> Stint-Tausch (alte Logik)
   var sm=getStartMins(drag.car);
   var rm=getRaceMins(drag.car);
   var pitM=getPitDur(drag.car);
-  var p=plan[drag.idx];
 
   // Determine target position from where mouse released (drag.currentLeft = %)
   var targetElapsed=Math.round(drag.currentLeft/100*rm);
