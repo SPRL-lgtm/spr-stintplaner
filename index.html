@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>SPR Stintplaner</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -1913,9 +1916,12 @@ function reRenderAll(){
     renderPool();
     renderVehGrid();
     initSlots();
-    if(typeof renderAvailEditors==='function')renderAvailEditors();
+    if(typeof renderAvailCtabs==='function')renderAvailCtabs();
+    if(typeof renderAvailAxis==='function')renderAvailAxis();
     if(typeof renderAvailOverview==='function')renderAvailOverview();
-    if(typeof renderPlan==='function')renderPlan();
+    if(typeof renderAvailEditors==='function')renderAvailEditors();
+    if(typeof renderPlanCtabs==='function')renderPlanCtabs();
+    if(typeof renderPlanView==='function')renderPlanView();
   }catch(e){console.error('reRender error',e);}
 }
 async function cloudPull(silent){
