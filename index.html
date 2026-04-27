@@ -1079,10 +1079,71 @@ function buildPlan(carNum){
 
   while(elapsed<rm){
     var remaining=rm-elapsed;
-    // Bei noLimit: effektive Stintlaenge = Tankreichweite (vorlaeufig mit erstem Slot,
-    // wird unten nach Fahrerwahl ggf. korrigiert)
-    var effStintM=noLimit?getFuelStintMins(carNum,slots[0]):stintM;
     var dur;
+    var midH,isNight;
+
+    if(noLimit){
+      // Im noLimit-Modus: erst Fahrer waehlen, dann Stintlaenge = Tankreichweite des Fahrers
+      // forceLastDriver hier deaktiviert, da Stintlaenge pro Fahrer variiert
+      midH=Math.floor((sm+elapsed)/60)%24;
+      isNight=midH<sunriseH||midH>=sunsetH;
+      var bestSlot=null,bestScore=-99;
+      slots.forEach(function(slot){
+        var pi=slot.poolIdx;
+        var av=isAvailAt(carNum,pi,elapsed);
+        if(av==='unavail')return;
+        var score=av==='avail'?10:5;
+        if(pi!==lastPI)score+=3;
+        if(isNight&&slot.prefNight)score+=4;
+        if(!isNight&&slot.prefNight)score-=2;
+        if(stintNum===0&&slot.prefStart)score+=6;
+        var myStints=plan.filter(function(p){return!p.pit&&p.pi===pi}).length;
+        score-=myStints*0.5;
+        if(score>bestScore){bestScore=score;bestSlot=slot;}
+      });
+      if(!bestSlot)bestSlot=slots[stintNum%slots.length];
+
+      // Stintlaenge = Tankreichweite dieses Fahrers
+      var driverStint=getFuelStintMins(carNum,bestSlot);
+      dur=Math.min(driverStint,remaining);
+      midH=Math.floor((sm+elapsed+dur/2)/60)%24;
+      isNight=midH<sunriseH||midH>=sunsetH;
+
+      var pi=bestSlot.poolIdx;
+      var name=getDriverName(pi);
+      var col=DRV_COLORS[pi%DRV_COLORS.length];
+      var absStart=fmtT(sm+elapsed),absEnd=fmtT(sm+elapsed+dur);
+      var lapSec=parseLapTime(bestSlot.lapTime);
+      var laps=lapSec>0?Math.floor(dur*60/lapSec):0;
+      var fuelUsed=laps>0?Math.round(parseFloat(bestSlot.fuelPerLap||0)*laps*10)/10:0;
+      var tankSize=getTankSize(carNum);
+      var fuelInTank=tankSize>0?tankSize:0;
+      var pitWindowLap=0,pitWindowTime='';
+      if(lapSec>0&&parseFloat(bestSlot.fuelPerLap)>0&&tankSize>0){
+        pitWindowLap=Math.floor(tankSize/parseFloat(bestSlot.fuelPerLap));
+        pitWindowTime=fmtT(sm+elapsed+pitWindowLap*lapSec/60);
+      }
+      plan.push({stintNum:stintNum+1,pit:false,driver:name,pi:pi,color:col,
+        absStart:absStart,absEnd:absEnd,duration:dur,isNight:isNight,
+        elapsedStart:elapsed,elapsedEnd:elapsed+dur,
+        laps:laps,fuelUsed:fuelUsed,fuelInTank:fuelInTank,
+        pitWindowLap:pitWindowLap,pitWindowTime:pitWindowTime,
+        lapTime:bestSlot.lapTime||'',actualEnd:''});
+      lastPI=pi;elapsed+=dur;stintNum++;
+
+      if(elapsed<rm){
+        plan.push({stintNum:'PIT',pit:true,driver:'',pi:-1,color:'',
+          absStart:fmtT(sm+elapsed),absEnd:fmtT(sm+elapsed+pitM),
+          duration:pitM,isNight:false,
+          elapsedStart:elapsed,elapsedEnd:elapsed+pitM,
+          fuelAdded:fuelUsed,lapAtStop:laps});
+        elapsed+=pitM;
+      }
+      continue;
+    }
+
+    // Standard-Modus mit fester Stintlaenge
+    var effStintM=stintM;
     if(remaining<=effStintM){
       // This is the last stint - take whatever is left
       dur=remaining;
@@ -1136,16 +1197,6 @@ function buildPlan(carNum){
     if(!bestSlot){
       // fallback: round robin ignoring avail
       bestSlot=slots[stintNum%slots.length];
-    }
-
-    // Bei noLimit: Stintlaenge nochmal an gewaehlten Fahrer anpassen (sein Verbrauch/Lapzeit)
-    if(noLimit){
-      var driverStint=getFuelStintMins(carNum,bestSlot);
-      if(remaining<=driverStint){
-        dur=remaining;
-      } else {
-        dur=driverStint;
-      }
     }
 
     var pi=bestSlot.poolIdx;
