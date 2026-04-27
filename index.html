@@ -511,14 +511,21 @@ function getStintLen(c){
   if(isNaN(n))return 60;
   return n; // -1 = kein Limit, nur Spritreichweite
 }
-// Berechnet effektive Stintlänge in Minuten basierend auf Tankreichweite (für stintM=-1)
-function getFuelStintMins(carNum,slot){
+// Berechnet Tankreichweite eines Fahrers (für stintM=-1)
+// Gibt {laps, mins} zurück
+function getFuelStintInfo(carNum,slot){
   var tankSize=getTankSize(carNum);
   var fpl=parseFloat(slot&&slot.fuelPerLap)||0;
   var lapSec=parseLapTime(slot&&slot.lapTime||'');
-  if(tankSize<=0||fpl<=0||lapSec<=0)return 60; // Fallback wenn Daten fehlen
+  if(tankSize<=0||fpl<=0||lapSec<=0)return {laps:0,mins:60}; // Fallback
   var laps=Math.floor(tankSize/fpl);
-  return Math.max(1,Math.round(laps*lapSec/60));
+  // Runden hoch (nicht round) damit Stint die volle Tankreichweite abdeckt
+  var mins=Math.max(1,Math.ceil(laps*lapSec/60));
+  return {laps:laps,mins:mins};
+}
+// Backward-compat: nur Minuten
+function getFuelStintMins(carNum,slot){
+  return getFuelStintInfo(carNum,slot).mins;
 }
 function getPitDur(c){
   // Returns pit duration in MINUTES (converted from seconds)
@@ -1104,8 +1111,10 @@ function buildPlan(carNum){
       if(!bestSlot)bestSlot=slots[stintNum%slots.length];
 
       // Stintlaenge = Tankreichweite dieses Fahrers
-      var driverStint=getFuelStintMins(carNum,bestSlot);
-      dur=Math.min(driverStint,remaining);
+      var fuelInfo=getFuelStintInfo(carNum,bestSlot);
+      var fullStintMins=fuelInfo.mins;
+      var fullStintLaps=fuelInfo.laps;
+      dur=Math.min(fullStintMins,remaining);
       midH=Math.floor((sm+elapsed+dur/2)/60)%24;
       isNight=midH<sunriseH||midH>=sunsetH;
 
@@ -1114,14 +1123,19 @@ function buildPlan(carNum){
       var col=DRV_COLORS[pi%DRV_COLORS.length];
       var absStart=fmtT(sm+elapsed),absEnd=fmtT(sm+elapsed+dur);
       var lapSec=parseLapTime(bestSlot.lapTime);
-      var laps=lapSec>0?Math.floor(dur*60/lapSec):0;
+      // Runden direkt aus Tankreichweite (volle Stints) bzw. proportional fuer letzten kurzen Stint
+      var laps;
+      if(dur>=fullStintMins){
+        laps=fullStintLaps;
+      } else {
+        laps=lapSec>0?Math.floor(dur*60/lapSec):0;
+      }
       var fuelUsed=laps>0?Math.round(parseFloat(bestSlot.fuelPerLap||0)*laps*10)/10:0;
       var tankSize=getTankSize(carNum);
       var fuelInTank=tankSize>0?tankSize:0;
-      var pitWindowLap=0,pitWindowTime='';
-      if(lapSec>0&&parseFloat(bestSlot.fuelPerLap)>0&&tankSize>0){
-        pitWindowLap=Math.floor(tankSize/parseFloat(bestSlot.fuelPerLap));
-        pitWindowTime=fmtT(sm+elapsed+pitWindowLap*lapSec/60);
+      var pitWindowLap=fullStintLaps,pitWindowTime='';
+      if(lapSec>0&&fullStintLaps>0){
+        pitWindowTime=fmtT(sm+elapsed+fullStintLaps*lapSec/60);
       }
       plan.push({stintNum:stintNum+1,pit:false,driver:name,pi:pi,color:col,
         absStart:absStart,absEnd:absEnd,duration:dur,isNight:isNight,
