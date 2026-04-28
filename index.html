@@ -366,7 +366,7 @@ tbody tr:hover td{background:var(--s2)}
   </div>
   </div><!-- carzone -->
   <div class="btn-row">
-    <button class="btn btn-p btn-lg" onclick="buildAndShow()">Plan berechnen &rarr;</button>
+    <button class="btn btn-p btn-lg" onclick="askBuildPlan()">Plan berechnen &rarr;</button>
   </div>
 </div>
 
@@ -407,7 +407,7 @@ tbody tr:hover td{background:var(--s2)}
     </div>
     <!-- recalc button -->
     <div style="padding-left:20px;flex-shrink:0">
-      <button onclick="softRebuild()" style="padding:8px 16px;border-radius:6px;background:var(--acc);border:none;color:#0a0a0f;font-size:11px;font-weight:700;letter-spacing:.05em;cursor:pointer;font-family:inherit;white-space:nowrap">Neu berechnen</button>
+      <button onclick="askSoftRebuild()" style="padding:8px 16px;border-radius:6px;background:var(--acc);border:none;color:#0a0a0f;font-size:11px;font-weight:700;letter-spacing:.05em;cursor:pointer;font-family:inherit;white-space:nowrap">Neu berechnen</button>
     </div>
   </div>
   <div class="card">
@@ -452,6 +452,26 @@ tbody tr:hover td{background:var(--s2)}
     <div class="modal-btns">
       <button class="btn btn-cancel" onclick="closeReset()">Abbrechen</button>
       <button class="btn btn-danger" onclick="doReset()">Zuruecksetzen</button>
+    </div>
+  </div>
+</div>
+
+<!-- BUILD-PLAN BESTAETIGUNG -->
+<div class="modal-bg" id="buildModal">
+  <div class="modal">
+    <h3>Plan berechnen</h3>
+    <p>Du bist dabei den Plan fuer dieses Fahrzeug komplett neu zu berechnen:</p>
+    <div id="buildModalCarBox" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:7px;border:2px solid var(--border);margin-bottom:14px">
+      <div id="buildModalDot" style="width:14px;height:14px;border-radius:50%;flex-shrink:0;box-shadow:0 0 8px currentColor"></div>
+      <div style="flex:1">
+        <div style="font-size:10px;color:var(--m2);letter-spacing:.08em;text-transform:uppercase;font-weight:700">Aktives Fahrzeug</div>
+        <div id="buildModalCarName" style="font-size:16px;font-weight:700;color:var(--text)">-</div>
+      </div>
+    </div>
+    <p style="font-size:11px;color:var(--muted);margin-top:0">Alle bestehenden Stints und manuellen Aenderungen an diesem Fahrzeug werden ueberschrieben. Andere Fahrzeuge bleiben unveraendert.</p>
+    <div class="modal-btns">
+      <button class="btn btn-cancel" onclick="closeBuildModal()">Abbrechen</button>
+      <button class="btn btn-p" onclick="confirmBuildPlan()">Ja, neu berechnen</button>
     </div>
   </div>
 </div>
@@ -2343,6 +2363,52 @@ function importJSON(e){
 // ===================== RESET =====================
 function showReset(){document.getElementById('resetModal').classList.add('open');}
 function closeReset(){document.getElementById('resetModal').classList.remove('open');}
+
+// ===================== BUILD-PLAN BESTAETIGUNG =====================
+var pendingBuildAction=null; // 'full' (buildAndShow) oder 'soft' (softRebuild)
+function askBuildPlan(){
+  // Wird aus Verfuegbarkeits-Tab aufgerufen -> activeAvailCar
+  var c=activeAvailCar;
+  if(!S.cars[c]){showToast('Fahrzeug nicht gefunden','err');return;}
+  if(S.cars[c].active===false){showToast('Fahrzeug '+c+' ist nicht aktiv','err');return;}
+  pendingBuildAction='full';
+  showBuildModal(c,'Du bist dabei den Plan fuer dieses Fahrzeug komplett neu zu berechnen:');
+}
+function askSoftRebuild(){
+  // Wird aus Plan-Tab aufgerufen -> activePlanCar
+  var c=activePlanCar;
+  if(!S.cars[c]){showToast('Fahrzeug nicht gefunden','err');return;}
+  if(S.cars[c].active===false){showToast('Fahrzeug '+c+' ist nicht aktiv','err');return;}
+  pendingBuildAction='soft';
+  showBuildModal(c,'Du bist dabei den Plan fuer dieses Fahrzeug zu aktualisieren:');
+}
+function showBuildModal(carNum,questionText){
+  var name=S.cars[carNum].name||('Fahrzeug '+carNum);
+  var col=CAR_COLORS[carNum]||'#888';
+  document.getElementById('buildModalCarName').textContent=name;
+  var dot=document.getElementById('buildModalDot');
+  dot.style.background=col;
+  dot.style.color=col;
+  var box=document.getElementById('buildModalCarBox');
+  box.style.borderColor=col;
+  box.style.background='rgba(255,255,255,.02)';
+  // Frage-Text aktualisieren
+  var modal=document.getElementById('buildModal');
+  var p=modal.querySelector('p:first-of-type');
+  if(p)p.textContent=questionText;
+  modal.classList.add('open');
+}
+function closeBuildModal(){
+  document.getElementById('buildModal').classList.remove('open');
+  pendingBuildAction=null;
+}
+function confirmBuildPlan(){
+  document.getElementById('buildModal').classList.remove('open');
+  if(pendingBuildAction==='full')buildAndShow();
+  else if(pendingBuildAction==='soft')softRebuild();
+  pendingBuildAction=null;
+}
+
 function doReset(){
   var mode=document.querySelector('input[name="resetMode"]:checked');
   var keepPool=mode&&mode.value==='keep_pool';
