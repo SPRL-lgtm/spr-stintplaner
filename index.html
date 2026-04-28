@@ -108,6 +108,29 @@ select option{background:var(--s2)}
 .ctab[data-c="3"].on{background:rgba(249,115,22,.15);border-color:var(--c3);color:var(--c3)}
 .ctab[data-c="4"].on{background:rgba(168,85,247,.15);border-color:var(--c4);color:var(--c4)}
 .ctab:hover:not(.on){border-color:var(--b2);color:var(--text)}
+/* Aktiver-Wagen-Banner (Schutz vor Verwechslung) */
+.carbanner{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:7px;margin-bottom:14px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--s2)}
+.carbanner .cbdot{width:12px;height:12px;border-radius:50%;flex-shrink:0;box-shadow:0 0 8px currentColor}
+.carbanner .cblbl{color:var(--m2);font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
+.carbanner .cbname{color:var(--text);font-size:14px;font-weight:700}
+.carbanner.c1{border-color:var(--c1);background:rgba(59,130,246,.08)}
+.carbanner.c1 .cbdot{background:var(--c1);color:var(--c1)}
+.carbanner.c1 .cbname{color:var(--c1)}
+.carbanner.c2{border-color:var(--c2);background:rgba(34,197,94,.08)}
+.carbanner.c2 .cbdot{background:var(--c2);color:var(--c2)}
+.carbanner.c2 .cbname{color:var(--c2)}
+.carbanner.c3{border-color:var(--c3);background:rgba(249,115,22,.08)}
+.carbanner.c3 .cbdot{background:var(--c3);color:var(--c3)}
+.carbanner.c3 .cbname{color:var(--c3)}
+.carbanner.c4{border-color:var(--c4);background:rgba(168,85,247,.08)}
+.carbanner.c4 .cbdot{background:var(--c4);color:var(--c4)}
+.carbanner.c4 .cbname{color:var(--c4)}
+/* Farbiger Rahmen um Plan-/Avail-Bereich pro Fahrzeug */
+.carzone{border:2px solid var(--border);border-radius:9px;padding:14px;transition:border-color .2s}
+.carzone.c1{border-color:var(--c1);box-shadow:0 0 0 1px rgba(59,130,246,.2)}
+.carzone.c2{border-color:var(--c2);box-shadow:0 0 0 1px rgba(34,197,94,.2)}
+.carzone.c3{border-color:var(--c3);box-shadow:0 0 0 1px rgba(249,115,22,.2)}
+.carzone.c4{border-color:var(--c4);box-shadow:0 0 0 1px rgba(168,85,247,.2)}
 .cdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 
 /* AVAIL */
@@ -316,6 +339,16 @@ tbody tr:hover td{background:var(--s2)}
   <div class="card">
     <div class="ct">Fahrzeug</div>
     <div class="ctabs" id="availCtabs"></div>
+    <div class="carbanner" id="availBanner" style="margin-top:6px;margin-bottom:0">
+      <div class="cbdot"></div>
+      <div>
+        <div class="cblbl">Du bearbeitest gerade</div>
+        <div class="cbname" id="availBannerName">-</div>
+      </div>
+    </div>
+  </div>
+  <div class="carzone" id="availZone">
+  <div class="card">
     <div class="ct" style="margin-top:2px">Verfuegbarkeit</div>
     <div class="legend">
       <div class="litem"><div class="ldot" style="background:rgba(34,197,94,.75)"></div>Verfuegbar</div>
@@ -331,6 +364,7 @@ tbody tr:hover td{background:var(--s2)}
     <div class="ct">Zeitraeume bearbeiten</div>
     <div id="availEditors"></div>
   </div>
+  </div><!-- carzone -->
   <div class="btn-row">
     <button class="btn btn-p btn-lg" onclick="buildAndShow()">Plan berechnen &rarr;</button>
   </div>
@@ -340,6 +374,14 @@ tbody tr:hover td{background:var(--s2)}
 <div class="panel" id="tab-plan">
   <div style="max-width:1560px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:16px">
   <div class="ctabs" id="planCtabs" style="margin-bottom:0"></div>
+  <div class="carbanner" id="planBanner">
+    <div class="cbdot"></div>
+    <div>
+      <div class="cblbl">Du bearbeitest gerade</div>
+      <div class="cbname" id="planBannerName">-</div>
+    </div>
+  </div>
+  <div class="carzone" id="planZone">
   <div style="background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:0">
     <!-- stat blocks -->
     <div style="display:flex;flex-direction:column;align-items:center;padding:0 24px;border-right:1px solid var(--border);min-width:90px">
@@ -377,6 +419,7 @@ tbody tr:hover td{background:var(--s2)}
     <div id="stintCards"></div>
   </div>
   <div style="display:none" id="drvDist"></div>
+  </div><!-- carzone -->
   </div><!-- centering wrapper -->
 </div>
 
@@ -671,7 +714,7 @@ function initSetup(){
       nameInp.id='cname'+cn;
       nameInp.value=car.name;
       nameInp.style.cssText='margin:0;flex:1;font-weight:700;font-size:12px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);padding:2px 0;outline:none;font-family:inherit';
-      nameInp.addEventListener('input',function(){S.cars[cn].name=this.value;updateVehTabs();autoSave();});
+      nameInp.addEventListener('input',function(){S.cars[cn].name=this.value;updateVehTabs();if(typeof updateCarBanners==='function')updateCarBanners();autoSave();});
 
       var activeBtn=document.createElement('button');
       activeBtn.textContent=isActive?'Aktiv':'Inaktiv';
@@ -837,7 +880,7 @@ function renderVehGrid(){
       nameInp.type='text';
       nameInp.id='cname'+cn;
       nameInp.value=S.cars[cn].name;
-      nameInp.addEventListener('input',function(){S.cars[cn].name=this.value;updateVehTabs();autoSave();});
+      nameInp.addEventListener('input',function(){S.cars[cn].name=this.value;updateVehTabs();if(typeof updateCarBanners==='function')updateCarBanners();autoSave();});
       hdr.appendChild(dot);
       hdr.appendChild(nameInp);
       card.appendChild(hdr);
@@ -972,9 +1015,12 @@ function selectAvailCar(n,container){
   activeAvailCar=n;
   container.querySelectorAll('.ctab').forEach(function(t){t.classList.remove('on')});
   container.querySelector('.ctab[data-c="'+n+'"]').classList.add('on');
+  updateCarBanners();
   renderAvailAxis();
   renderAvailOverview();
   renderAvailEditors();
+  // Tab-Auswahl lokal merken (nicht via Cloud)
+  try{localStorage.setItem('spr_active_tabs',JSON.stringify({avail:activeAvailCar,plan:activePlanCar}));}catch(e){}
 }
 
 // ===================== AVAIL AXIS =====================
@@ -1365,7 +1411,31 @@ function selectPlanCar(n,container){
   activePlanCar=n;
   container.querySelectorAll('.ctab').forEach(function(t){t.classList.remove('on')});
   container.querySelector('.ctab[data-c="'+n+'"]').classList.add('on');
+  updateCarBanners();
   renderPlanView();
+  // Tab-Auswahl lokal merken (nicht via Cloud)
+  try{localStorage.setItem('spr_active_tabs',JSON.stringify({avail:activeAvailCar,plan:activePlanCar}));}catch(e){}
+}
+
+// Aktualisiert Banner-Text + Farbklassen fuer aktive Wagen-Anzeige
+function updateCarBanners(){
+  var ids=[
+    {banner:'planBanner',name:'planBannerName',zone:'planZone',car:activePlanCar},
+    {banner:'availBanner',name:'availBannerName',zone:'availZone',car:activeAvailCar}
+  ];
+  ids.forEach(function(it){
+    var b=document.getElementById(it.banner);
+    var n=document.getElementById(it.name);
+    var z=document.getElementById(it.zone);
+    if(!it.car||!S.cars[it.car])return;
+    var nm=S.cars[it.car].name||('Fahrzeug '+it.car);
+    [b,z].forEach(function(el){
+      if(!el)return;
+      el.classList.remove('c1','c2','c3','c4');
+      el.classList.add('c'+it.car);
+    });
+    if(n)n.textContent=nm;
+  });
 }
 
 function renderPlanView(){
@@ -2063,8 +2133,8 @@ function buildSnapshot(){
   syncAll();
   return {
     form:collectFormData(),
-    pool:S.pool,cars:S.cars,avail:S.avail,plans:S.plans,
-    activeAvailCar:activeAvailCar,activePlanCar:activePlanCar
+    pool:S.pool,cars:S.cars,avail:S.avail,plans:S.plans
+    // activeAvailCar/activePlanCar werden NICHT gesynct - jeder User hat eigene Tab-Auswahl
   };
 }
 function applySnapshot(data){
@@ -2074,8 +2144,7 @@ function applySnapshot(data){
   if(data.cars)S.cars=data.cars;
   if(data.avail)S.avail=data.avail;
   if(data.plans)S.plans=data.plans;
-  if(data.activeAvailCar)activeAvailCar=data.activeAvailCar;
-  if(data.activePlanCar)activePlanCar=data.activePlanCar;
+  // Tab-Auswahl wird NICHT mehr aus Cloud-Daten uebernommen (Schutz vor versehentlichem Tab-Wechsel)
 }
 function reRenderAll(){
   try{
@@ -2090,6 +2159,7 @@ function reRenderAll(){
     if(typeof renderAvailEditors==='function')renderAvailEditors();
     if(typeof renderPlanCtabs==='function')renderPlanCtabs();
     if(typeof renderPlanView==='function')renderPlanView();
+    if(typeof updateCarBanners==='function')updateCarBanners();
   }catch(e){console.error('reRender error',e);}
 }
 async function cloudPull(silent){
@@ -2179,11 +2249,12 @@ function saveData(){
   syncAll();
   var data={
     form:collectFormData(),
-    pool:S.pool,cars:S.cars,avail:S.avail,plans:S.plans,
-    activeAvailCar:activeAvailCar,activePlanCar:activePlanCar
+    pool:S.pool,cars:S.cars,avail:S.avail,plans:S.plans
   };
   try{
     localStorage.setItem('spr_stintplaner',JSON.stringify(data));
+    // Tab-Auswahl separat lokal pro User speichern (nicht via Cloud syncen)
+    localStorage.setItem('spr_active_tabs',JSON.stringify({avail:activeAvailCar,plan:activePlanCar}));
   }catch(e){}
   // Push zur Cloud (asynchron, blockiert UI nicht)
   cloudPush();
@@ -2199,8 +2270,14 @@ function loadData(){
     if(data.cars)S.cars=data.cars;
     if(data.avail)S.avail=data.avail;
     if(data.plans)S.plans=data.plans;
-    if(data.activeAvailCar)activeAvailCar=data.activeAvailCar;
-    if(data.activePlanCar)activePlanCar=data.activePlanCar;
+    // Tab-Auswahl: zuerst aus separatem lokalem Storage, sonst aus altem Format
+    var tabsRaw=localStorage.getItem('spr_active_tabs');
+    if(tabsRaw){
+      try{var t=JSON.parse(tabsRaw);if(t.avail)activeAvailCar=t.avail;if(t.plan)activePlanCar=t.plan;}catch(e){}
+    } else {
+      if(data.activeAvailCar)activeAvailCar=data.activeAvailCar;
+      if(data.activePlanCar)activePlanCar=data.activePlanCar;
+    }
     return true;
   }catch(e){return false;}
 }
@@ -2285,6 +2362,7 @@ function showToast(msg,type){
   initSetup();
   renderPool();
   renderVehGrid();
+  if(typeof updateCarBanners==='function')updateCarBanners();
   checkAuth();
   // Cloud-Sync starten (auch wenn pwScreen noch sichtbar - Daten werden dann beim Schliessen schon da sein)
   initCloudSync();
