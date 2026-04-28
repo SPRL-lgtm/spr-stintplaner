@@ -1303,40 +1303,65 @@ function buildPlan(carNum){
 }
 
 function buildAndShow(){
-  // Full rebuild - clears all manual locks
+  // Full rebuild - clears all manual locks (NUR aktives Fahrzeug)
   syncAll();
-  for(var c=1;c<=4;c++){
-    if(S.cars[c].active===false){S.plans[c]=[];continue;}
-    S.plans[c]=buildPlan(c);
+  var c=activeAvailCar; // Auf Verfuegbarkeits-Tab geklickt -> dieser Wagen
+  if(!S.cars[c]){showToast('Fahrzeug nicht gefunden','err');return;}
+  if(S.cars[c].active===false){
+    showToast('Fahrzeug '+c+' ist nicht aktiv','err');
+    return;
   }
+  S.plans[c]=buildPlan(c);
+  // Auch Plan-Tab auf gleiches Fahrzeug stellen, damit User direkt das Ergebnis sieht
+  activePlanCar=c;
+  try{localStorage.setItem('spr_active_tabs',JSON.stringify({avail:activeAvailCar,plan:activePlanCar}));}catch(e){}
   goTab('plan',document.querySelectorAll('.ntab')[3]);
+  showToast('Plan fuer '+(S.cars[c].name||('Fahrzeug '+c))+' berechnet','ok');
   autoSave();
 }
 
 function softRebuild(){
-  // Only fill missing stints at end - keep manually locked stints
+  // Only fill missing stints at end - keep manually locked stints (NUR aktives Plan-Fahrzeug)
   syncAll();
   var sunriseH=parseInt(document.getElementById('sunrise').value||7);
   var sunsetH=parseInt(document.getElementById('sunset').value||21);
 
-  for(var c=1;c<=4;c++){
-    if(S.cars[c].active===false)continue;
+  var c=activePlanCar;
+  if(!S.cars[c]||S.cars[c].active===false){
+    showToast('Fahrzeug nicht aktiv','err');
+    return;
+  }
+  (function(){
     var plan=S.plans[c];
-    if(!plan||!plan.length)continue;
+    if(!plan||!plan.length){
+      // Kein Plan vorhanden - kompletter Neubau
+      S.plans[c]=buildPlan(c);
+      renderPlanView();
+      showToast('Plan fuer '+(S.cars[c].name||('Fahrzeug '+c))+' neu erstellt','ok');
+      autoSave();
+      return;
+    }
 
-    var rm=getRaceMins(c);
+    // Find race end coverage
+    var lastEntry=plan[plan.length-1];
+    var lastEnd=lastEntry?lastEntry.elapsedEnd:0;
+    var rmCheck=getRaceMins(c);
+
+    if(lastEnd>=rmCheck-0.5){
+      // Plan deckt bereits die Rennzeit ab, nichts zu tun
+      renderPlanView();
+      showToast('Plan ist bereits vollstaendig','ok');
+      return;
+    }
+
+    // Werte fuer diesen Wagen vorbereiten
+    var rm=rmCheck;
     var sm=getStartMins(c);
     var stintM=getStintLen(c);
     var pitM=getPitDur(c);
     var noLimit=(stintM===-1);
     var slots=S.cars[c].slots.filter(function(s){return s.poolIdx>=0&&getDriverName(s.poolIdx);});
-    if(!slots.length)continue;
-
-    // Find race end coverage
-    var lastEntry=plan[plan.length-1];
-    var lastEnd=lastEntry?lastEntry.elapsedEnd:0;
-
-    if(lastEnd>=rm-0.5) continue; // already covered
+    if(!slots.length){showToast('Keine Fahrer zugewiesen','err');return;}
 
     // Remove trailing pit if any before filling
     if(plan[plan.length-1].pit) plan.pop();
@@ -1381,12 +1406,12 @@ function softRebuild(){
     // Renumber
     var n=1;
     plan.forEach(function(e){if(!e.pit)e.stintNum=n++;});
-  }
+  })();
 
   renderPlanCtabs();
   renderPlanView();
   autoSave();
-  showToast('Plan aktualisiert','ok');
+  showToast('Plan fuer '+(S.cars[c].name||('Fahrzeug '+c))+' aktualisiert','ok');
 }
 
 // ===================== PLAN TAB =====================
